@@ -1,25 +1,17 @@
-//! A terse, no-std crate for 2D integer geometry
-//!
-//! # Example
-//!
-//! ```
-//! use ixy::add;
-//!
-//! assert_eq!(add(2, 3), 5);
-//! ```
+//! A terse, no-std crate for 2D integer geometry.
 
-// TODO: Write a library.
-#[must_use]
-pub fn add(a: i32, b: i32) -> i32 {
-    a + b
-}
+#![no_std]
+#![cfg_attr(not(test), forbid(unsafe_code))]
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+pub mod index;
+pub use index::Index;
 
-    #[test]
-    fn test_add() {
-        assert_eq!(add(2, 3), 5);
-    }
-}
+pub mod int;
+
+pub(crate) mod internal;
+
+mod pos;
+pub use pos::*;
+
+mod rect;
+pub use rect::*;

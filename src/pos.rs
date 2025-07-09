@@ -1,0 +1,474 @@
+use core::ops;
+
+use crate::int::{Int, SignedInt};
+
+/// A macro that creates a position with the given `x` and `y` coordinates.
+#[macro_export]
+macro_rules! pos {
+    ($x:expr, $y:expr) => {
+        Pos::new($x, $y)
+    };
+}
+
+/// A 2-dimensional point with integer precision.
+///
+/// The type parameter `T` is guaranteed to be a built-in Rust integer type, and defaults to `i32`.
+///
+/// # Layout
+///
+/// The layout of `Pos<T>` is guaranteed to be the same as a C struct with two fields, `x` and `y`,
+/// both of type `T`.
+///
+/// For example, a `Pos<i32>` is equivalent to the following C struct:
+///
+/// ```c
+/// struct Pos {
+///   int x;
+///   int y;
+/// }
+/// ```
+///
+/// # Ordering
+///
+/// Points are ordered _lexographically_, or the point with the smaller `x` coordinate comes first.
+///
+/// If two points have the same `x` coordinate, the point with the smaller `y` coordinate is first.
+///
+/// ```rust
+/// use ixy::Pos;
+///
+/// assert!(Pos::new(1, 2) < Pos::new(2, 1));
+/// assert!(Pos::new(2, 2) > Pos::new(1, 2));
+/// ```
+///
+/// # Examples
+///
+/// Create a point, also known as a position, at `(3, 4)`:
+///
+/// ```rust
+/// use ixy::Pos;
+///
+/// let p = Pos::new(3, 4);
+/// assert_eq!(p.x, 3);
+/// assert_eq!(p.y, 4);
+/// ```
+///
+/// Or, to use a specific integer type, such as `u16`:
+///
+/// ```rust
+/// use ixy::Pos;
+///
+/// let p = Pos::<u16>::new(3, 4);
+/// assert_eq!(p.x, 3);
+/// assert_eq!(p.y, 4);
+/// ```
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[repr(C)]
+#[allow(private_bounds)]
+pub struct Pos<T: Int = i32> {
+    /// The x-coordinate, or _horizontal_ position from the origin.
+    ///
+    /// ```txt
+    /// (x increases →)
+    /// +---------→ x
+    /// |
+    /// |
+    /// ↓
+    /// y
+    /// ```
+    pub x: T,
+
+    /// The y-coordinate, or _vertical_ position from the origin.
+    ///
+    /// ```txt
+    /// (y increases ↓)
+    /// +---------→ x
+    /// |
+    /// |
+    /// ↓
+    /// y
+    /// ```
+    pub y: T,
+}
+
+#[allow(private_bounds)]
+impl<T: Int> Pos<T> {
+    /// Origin point, i.e. `(0, 0)`.
+    ///
+    /// This is the same value returned by [`Pos::default()`].
+    ///
+    /// ```txt
+    ///      ↑
+    ///      |
+    ///      |
+    /// ←----O----→
+    ///      |
+    ///      |
+    ///      ↓
+    /// ```
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use ixy::Pos;
+    ///
+    /// assert_eq!(Pos::ORIGIN, Pos::new(0, 0));
+    /// ```
+    pub const ORIGIN: Self = Self {
+        x: T::ZERO,
+        y: T::ZERO,
+    };
+
+    /// The minimum point, i.e. `(T::MIN, T::MIN)`.
+    ///
+    /// For unsigned integers, this is always [`Self::ORIGIN`], or `O` in the diagram below:
+    ///
+    /// ```txt
+    /// O---------→ x
+    /// |
+    /// |
+    /// ↓
+    /// y
+    /// ```
+    ///
+    /// For signed integers, this is the negation of [`Self::MAX`], or `P` in the diagram below:
+    /// ```txt
+    /// P    ↑
+    ///      |
+    ///      |
+    /// ←----O----→
+    ///      |
+    ///      |
+    ///      ↓
+    /// ```
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use ixy::Pos;
+    ///
+    /// assert_eq!(Pos::<i32>::MIN, Pos::<i32>::new(-2147483648, -2147483648));
+    /// assert_eq!(Pos::<u32>::MIN, Pos::<u32>::new(0, 0));
+    /// ```
+    pub const MIN: Self = Self {
+        x: T::MIN,
+        y: T::MIN,
+    };
+
+    /// The maximum point, i.e. `(T::MAX, T::MAX)`.
+    ///
+    /// Each value is the maximum value of the integer type `T` (i.e. `i32::MAX` for `Pos<i32>`).
+    ///
+    /// ```txt
+    /// O---------→ x
+    /// |
+    /// |
+    /// ↓
+    /// y           P
+    /// ```
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use ixy::Pos;
+    ///
+    /// assert_eq!(Pos::<i32>::MAX, Pos::<i32>::new(2147483647, 2147483647));
+    /// assert_eq!(Pos::<u32>::MAX, Pos::<u32>::new(4294967295, 4294967295));
+    /// ```
+    pub const MAX: Self = Self {
+        x: T::MAX,
+        y: T::MAX,
+    };
+
+    /// A unit vector of length `1` in the positive x-direction, i.e. `(1, 0)`.
+    ///
+    /// Useful in combination with [`ops::Mul`] or [`ops::MulAssign`] to scale the vector.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use ixy::Pos;
+    ///
+    /// let p = Pos::X * 5; // Scales the unit vector by 5
+    /// assert_eq!(p, Pos::new(5, 0));
+    ///
+    /// let mut q = Pos::X;
+    /// q *= 3; // Scales the unit vector by 3
+    /// assert_eq!(q, Pos::new(3, 0));
+    /// ```
+    pub const X: Self = Self {
+        x: T::ONE,
+        y: T::ZERO,
+    };
+
+    /// A unit vector of length `1` in the positive y-direction, i.e. `(0, 1)`.
+    ///
+    /// Useful in combination with [`ops::Mul`] or [`ops::MulAssign`] to scale the vector.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use ixy::Pos;
+    ///
+    /// let p = Pos::Y * 5; // Scales the unit vector by 5
+    /// assert_eq!(p, Pos::new(0, 5));
+    ///
+    /// let mut q = Pos::Y;
+    /// q *= 3; // Scales the unit vector by 3
+    /// assert_eq!(q, Pos::new(0, 3));
+    /// ```
+    pub const Y: Self = Self {
+        x: T::ZERO,
+        y: T::ONE,
+    };
+
+    /// Creates a new point with the given `x` and `y` coordinates.
+    ///
+    /// An alternative to using the `Pos { x, y }` syntax.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use ixy::Pos;
+    ///
+    /// assert_eq!(Pos::new(3, 4), Pos { x: 3, y: 4 });
+    /// ```
+    #[must_use]
+    pub const fn new(x: T, y: T) -> Self {
+        Self { x, y }
+    }
+}
+
+impl<T: SignedInt> Pos<T> {
+    /// A unit vector of length `1` in the negative x-direction, i.e. `(-1, 0)`.
+    ///
+    /// This is the negation of [`Pos::X`].
+    ///
+    /// Useful in combination with [`ops::Mul`] or [`ops::MulAssign`] to scale the vector.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use ixy::Pos;
+    ///
+    /// let p = Pos::NEG_X * 5; // Scales the unit vector by 5
+    /// assert_eq!(p, Pos::new(-5, 0));
+    ///
+    /// let mut q = Pos::NEG_X;
+    /// q *= 3; // Scales the unit vector by 3
+    /// assert_eq!(q, Pos::new(-3, 0));
+    /// ```
+    pub const NEG_X: Self = Self {
+        x: T::NEG_ONE,
+        y: T::ZERO,
+    };
+
+    /// A unit vector of length `1` in the negative y-direction, i.e. `(0, -1)`.
+    ///
+    /// This is the negation of [`Pos::Y`].
+    ///
+    /// Useful in combination with [`ops::Mul`] or [`ops::MulAssign`] to scale the vector.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use ixy::Pos;
+    ///
+    /// let p = Pos::NEG_Y * 5; // Scales the unit vector by 5
+    /// assert_eq!(p, Pos::new(0, -5));
+    ///
+    /// let mut q = Pos::NEG_Y;
+    /// q *= 3; // Scales the unit vector by 3
+    /// assert_eq!(q, Pos::new(0, -3));
+    /// ```
+    pub const NEG_Y: Self = Self {
+        x: T::ZERO,
+        y: T::NEG_ONE,
+    };
+}
+
+impl<T: Int> Default for Pos<T> {
+    fn default() -> Self {
+        Self::ORIGIN
+    }
+}
+
+impl<T: SignedInt> ops::Neg for Pos<T> {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        Self {
+            x: -self.x,
+            y: -self.y,
+        }
+    }
+}
+
+impl<T: Int> ops::Mul<T> for Pos<T> {
+    type Output = Self;
+
+    fn mul(self, rhs: T) -> Self::Output {
+        Self {
+            x: self.x * rhs,
+            y: self.y * rhs,
+        }
+    }
+}
+
+impl<T: Int> ops::MulAssign<T> for Pos<T> {
+    fn mul_assign(&mut self, rhs: T) {
+        self.x *= rhs;
+        self.y *= rhs;
+    }
+}
+
+impl<T: Int> From<(T, T)> for Pos<T> {
+    fn from(value: (T, T)) -> Self {
+        Self::new(value.0, value.1)
+    }
+}
+
+impl<T: Int> From<Pos<T>> for (T, T) {
+    fn from(pos: Pos<T>) -> Self {
+        (pos.x, pos.y)
+    }
+}
+
+impl<T: Int> From<[T; 2]> for Pos<T> {
+    fn from(value: [T; 2]) -> Self {
+        Self::new(value[0], value[1])
+    }
+}
+
+impl<T: Int> From<Pos<T>> for [T; 2] {
+    fn from(pos: Pos<T>) -> Self {
+        [pos.x, pos.y]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn layout_is_c_struct() {
+        struct CPos {
+            x: i32,
+            y: i32,
+        }
+
+        let pos = Pos::<i32> { x: 1, y: 2 };
+
+        #[allow(unsafe_code, reason = "Test")]
+        let c_pos: CPos = unsafe { core::mem::transmute(pos) };
+        assert_eq!(c_pos.x, 1);
+        assert_eq!(c_pos.y, 2);
+    }
+
+    #[test]
+    fn pos_macro() {
+        const P: Pos<i32> = pos!(3, 4);
+        assert_eq!(P.x, 3);
+        assert_eq!(P.y, 4);
+    }
+
+    #[test]
+    fn ord() {
+        assert!(Pos::new(1, 2) < Pos::new(2, 1));
+        assert!(Pos::new(1, 2) < Pos::new(1, 3));
+        assert!(Pos::new(1, 2) < Pos::new(2, 2));
+        assert!(Pos::new(2, 2) > Pos::new(1, 2));
+        assert!(Pos::new(2, 1) > Pos::new(1, 2));
+    }
+
+    #[test]
+    fn generic_t_defaults_to_i32() {
+        let p: Pos = Pos::default();
+        assert_eq!(p, Pos::<i32>::ORIGIN);
+    }
+
+    #[test]
+    fn origin_is_0_0() {
+        assert_eq!(Pos::ORIGIN, Pos::new(0, 0));
+    }
+
+    #[test]
+    fn min_is_min_min() {
+        assert_eq!(Pos::MIN, Pos::new(i32::MIN, i32::MIN));
+    }
+
+    #[test]
+    fn max_is_max_max() {
+        assert_eq!(Pos::MAX, Pos::new(i32::MAX, i32::MAX));
+    }
+
+    #[test]
+    fn x_is_1_0() {
+        assert_eq!(Pos::X, Pos::new(1, 0));
+    }
+
+    #[test]
+    fn y_is_0_1() {
+        assert_eq!(Pos::Y, Pos::new(0, 1));
+    }
+
+    #[test]
+    fn new_x_y() {
+        let p = Pos::new(3, 4);
+        assert_eq!(p.x, 3);
+        assert_eq!(p.y, 4);
+    }
+
+    #[test]
+    fn default_is_origin() {
+        let p: Pos<i32> = Pos::default();
+        assert_eq!(p, Pos::ORIGIN);
+    }
+
+    #[test]
+    fn negate() {
+        let p = Pos::new(3, 4);
+        assert_eq!(-p, Pos::new(-3, -4));
+    }
+
+    #[test]
+    fn mul_by_scalar() {
+        let p = Pos::new(3, 4) * 2;
+        assert_eq!(p, Pos::new(6, 8));
+    }
+
+    #[test]
+    fn mul_assign_by_scalar() {
+        let mut p = Pos::new(3, 4);
+        p *= 2;
+        assert_eq!(p, Pos::new(6, 8));
+    }
+
+    #[test]
+    fn from_tuple() {
+        let pos = Pos::from((3, 4));
+        assert_eq!(pos.x, 3);
+        assert_eq!(pos.y, 4);
+    }
+
+    #[test]
+    fn from_array() {
+        let pos = Pos::from([3, 4]);
+        assert_eq!(pos.x, 3);
+        assert_eq!(pos.y, 4);
+    }
+
+    #[test]
+    fn into_tuple() {
+        let pos = Pos::new(3, 4);
+        let tuple: (i32, i32) = pos.into();
+        assert_eq!(tuple, (3, 4));
+    }
+
+    #[test]
+    fn into_array() {
+        let pos = Pos::new(3, 4);
+        let array: [i32; 2] = pos.into();
+        assert_eq!(array, [3, 4]);
+    }
+}

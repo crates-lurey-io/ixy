@@ -20,3 +20,7 @@ This project uses [`just`][] to run commands the same way as the CI:
 [`just`]: https://crates.io/crates/just
 
 For a full list of commands, see the [`Justfile`](./Justfile).
+
+## Inspiration
+
+- [`tinygeom2d`](https://github.com/ttalvitie/tinygeom2d)
