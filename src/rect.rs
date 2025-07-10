@@ -1,5 +1,5 @@
 use crate::{
-    Pos,
+    HasSize, Pos,
     int::{Int, UnsignedInt},
 };
 
@@ -280,6 +280,17 @@ impl<T: Int> Rect<T> {
     }
 }
 
+impl<T: Int> HasSize for Rect<T> {
+    type Dim = T;
+
+    fn size(&self) -> crate::Size<Self::Dim> {
+        crate::Size {
+            width: self.width(),
+            height: self.height(),
+        }
+    }
+}
+
 impl<T: UnsignedInt> Rect<T> {
     /// Creates a new rectangle from the left, top, width, and height.
     ///
@@ -450,5 +461,17 @@ mod tests {
     fn area() {
         let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
         assert_eq!(rect.area(), 4);
+    }
+
+    #[test]
+    fn has_size() {
+        let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
+        assert_eq!(
+            rect.size(),
+            crate::Size {
+                width: 2,
+                height: 2
+            }
+        );
     }
 }

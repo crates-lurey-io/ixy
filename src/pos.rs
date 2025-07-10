@@ -1,6 +1,9 @@
 use core::ops;
 
-use crate::int::{Int, SignedInt};
+use crate::{
+    IntoSize,
+    int::{Int, SignedInt},
+};
 
 /// A macro that creates a position with the given `x` and `y` coordinates.
 #[macro_export]
@@ -377,6 +380,34 @@ where
     }
 }
 
+impl<T: Int> AsRef<[T; 2]> for Pos<T> {
+    fn as_ref(&self) -> &[T; 2] {
+        // SAFETY: Pos<T> is #[repr(C)] and has the same layout as [T; 2]
+        unsafe { &*core::ptr::from_ref::<Pos<T>>(self).cast::<[T; 2]>() }
+    }
+}
+
+impl<T: Int> AsRef<(T, T)> for Pos<T> {
+    fn as_ref(&self) -> &(T, T) {
+        // SAFETY: Pos<T> is #[repr(C)] and has the same layout as (T, T)
+        unsafe { &*core::ptr::from_ref::<Pos<T>>(self).cast::<(T, T)>() }
+    }
+}
+
+impl<T: Int> AsMut<[T; 2]> for Pos<T> {
+    fn as_mut(&mut self) -> &mut [T; 2] {
+        // SAFETY: Pos<T> is #[repr(C)] and has the same layout as [T; 2]
+        unsafe { &mut *core::ptr::from_mut::<Pos<T>>(self).cast::<[T; 2]>() }
+    }
+}
+
+impl<T: Int> AsMut<(T, T)> for Pos<T> {
+    fn as_mut(&mut self) -> &mut (T, T) {
+        // SAFETY: Pos<T> is #[repr(C)] and has the same layout as (T, T)
+        unsafe { &mut *(core::ptr::from_mut::<Pos<T>>(self)).cast::<(T, T)>() }
+    }
+}
+
 /// An error type for when a `Pos<T>` cannot be converted to another type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TryFromPosError {
@@ -389,6 +420,17 @@ impl<S: Int, T: Int + TryFrom<S>> TryFromPos<S> for Pos<T> {
         let x = T::try_from(value.x).map_err(|_| TryFromPosError::OutOfRange)?;
         let y = T::try_from(value.y).map_err(|_| TryFromPosError::OutOfRange)?;
         Ok(Pos::new(x, y))
+    }
+}
+
+impl<T: Int> IntoSize for Pos<T> {
+    type Dim = T;
+
+    fn into_size(self) -> crate::Size<Self::Dim> {
+        crate::Size {
+            width: self.x,
+            height: self.y,
+        }
     }
 }
 
@@ -546,5 +588,38 @@ mod tests {
         let source: Pos<u16> = Pos::new(7000, 8000);
         let result: Result<Pos<u8>, TryFromPosError> = source.try_into_pos();
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn as_ref_array() {
+        let pos = Pos::new(3, 4);
+        let arr: &[i32; 2] = pos.as_ref();
+        assert_eq!(arr, &[3, 4]);
+    }
+
+    #[test]
+    fn as_mut_array() {
+        let mut pos = Pos::new(3, 4);
+        let arr: &mut [i32; 2] = pos.as_mut();
+        arr[0] = 5;
+        arr[1] = 6;
+        assert_eq!(pos, Pos::new(5, 6));
+    }
+
+    #[test]
+    fn as_ref_tuple() {
+        let pos = Pos::new(3, 4);
+        let (x, y) = pos.as_ref();
+        assert_eq!(x, &3);
+        assert_eq!(y, &4);
+    }
+
+    #[test]
+    fn as_mut_tuple() {
+        let mut pos = Pos::new(3, 4);
+        let (x, y) = pos.as_mut();
+        *x = 5;
+        *y = 6;
+        assert_eq!(pos, Pos::new(5, 6));
     }
 }
