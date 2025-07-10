@@ -27,11 +27,14 @@ impl<T: Int, L: Layout> Index<T, L> {
 /// A mapping between a 2-dimensional array and a linear memory layout.
 #[allow(private_bounds)]
 pub trait Layout: Sized + crate::internal::Sealed {
+    /// Whether the layout is row-major.
+    const IS_ROW_MAJOR: bool;
+
     /// Converts a 2-dimensional position to a linear memory index.
-    fn to_1d<T: Int>(&self, pos: Pos<T>, width: usize) -> Index<T, Self>;
+    fn to_1d<T: Int>(pos: Pos<T>, width: usize) -> Index<T, Self>;
 
     /// Converts a linear memory index to a 2-dimensional position.
-    fn to_2d<T: Int>(&self, index: Index<T, Self>, width: usize) -> Pos<T>;
+    fn to_2d<T: Int>(index: Index<T, Self>, width: usize) -> Pos<T>;
 }
 
 /// Each row is stored contiguously in memory, with the first row at the lowest address.
@@ -39,11 +42,13 @@ pub struct RowMajor;
 
 impl crate::internal::Sealed for RowMajor {}
 impl Layout for RowMajor {
-    fn to_1d<T: Int>(&self, pos: Pos<T>, width: usize) -> Index<T, Self> {
+    const IS_ROW_MAJOR: bool = true;
+
+    fn to_1d<T: Int>(pos: Pos<T>, width: usize) -> Index<T, Self> {
         Index::new(pos.y.to_usize() * width + pos.x.to_usize())
     }
 
-    fn to_2d<T: Int>(&self, index: Index<T, Self>, width: usize) -> Pos<T> {
+    fn to_2d<T: Int>(index: Index<T, Self>, width: usize) -> Pos<T> {
         Pos {
             x: T::from_usize(index.index % width),
             y: T::from_usize(index.index / width),
@@ -56,7 +61,9 @@ pub struct ColMajor;
 
 impl crate::internal::Sealed for ColMajor {}
 impl Layout for ColMajor {
-    fn to_1d<T: Int>(&self, pos: Pos<T>, width: usize) -> Index<T, Self> {
+    const IS_ROW_MAJOR: bool = false;
+
+    fn to_1d<T: Int>(pos: Pos<T>, width: usize) -> Index<T, Self> {
         Index {
             index: (pos.x.to_usize() * width + pos.y.to_usize()),
             _pos_type: PhantomData,
@@ -64,7 +71,7 @@ impl Layout for ColMajor {
         }
     }
 
-    fn to_2d<T: Int>(&self, index: Index<T, Self>, width: usize) -> Pos<T> {
+    fn to_2d<T: Int>(index: Index<T, Self>, width: usize) -> Pos<T> {
         Pos {
             x: T::from_usize(index.index / width),
             y: T::from_usize(index.index % width),
@@ -78,42 +85,38 @@ mod tests {
 
     #[test]
     fn to_row_major() {
-        let layout = RowMajor;
         let pos = Pos::new(2, 3);
         let width = 5;
 
-        let index = layout.to_1d(pos, width);
+        let index = RowMajor::to_1d(pos, width);
         assert_eq!(index.index, 17); // 3 * 5 + 2
     }
 
     #[test]
     fn to_col_major() {
-        let layout = ColMajor;
         let pos = Pos::new(2, 3);
         let width = 5;
 
-        let index = layout.to_1d(pos, width);
+        let index = ColMajor::to_1d(pos, width);
         assert_eq!(index.index, 13); // 2 * 5 + 3
     }
 
     #[test]
     fn from_row_major() {
-        let layout = RowMajor;
         let index = Index::<i32, RowMajor>::new(17);
         let width = 5;
 
-        let pos = layout.to_2d(index, width);
+        let pos = RowMajor::to_2d(index, width);
         assert_eq!(pos.x, 2); // 17 % 5
         assert_eq!(pos.y, 3); // 17 / 5
     }
 
     #[test]
     fn from_col_major() {
-        let layout = ColMajor;
         let index = Index::<i32, ColMajor>::new(13);
         let width = 5;
 
-        let pos = layout.to_2d(index, width);
+        let pos = ColMajor::to_2d(index, width);
         assert_eq!(pos.x, 2); // 13 / 5
         assert_eq!(pos.y, 3); // 13 % 5
     }

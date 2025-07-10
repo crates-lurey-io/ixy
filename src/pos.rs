@@ -346,6 +346,52 @@ impl<T: Int> From<Pos<T>> for [T; 2] {
     }
 }
 
+/// A trait for converting a `Pos<T>` to another type.
+pub trait TryFromPos<T: Int>: Sized {
+    /// Returns the type that the `Pos<T>` can be converted to.
+    ///
+    /// # Errors
+    ///
+    /// If the conversion fails, returns a `TryFromPosError`.
+    fn try_from_pos(value: Pos<T>) -> Result<Self, TryFromPosError>;
+}
+
+/// A trait for converting a `Pos<T>` to another type.
+pub trait TryIntoPos<T: Int>: Sized {
+    /// Returns the type that the `Pos<T>` can be converted to.
+    ///
+    /// # Errors
+    ///
+    /// If the conversion fails, returns a `TryFromPosError`.
+    fn try_into_pos(self) -> Result<Pos<T>, TryFromPosError>;
+}
+
+impl<T, U> TryIntoPos<U> for Pos<T>
+where
+    Pos<U>: TryFromPos<T>,
+    U: Int,
+    T: Int,
+{
+    fn try_into_pos(self) -> Result<Pos<U>, TryFromPosError> {
+        Pos::<U>::try_from_pos(self)
+    }
+}
+
+/// An error type for when a `Pos<T>` cannot be converted to another type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TryFromPosError {
+    /// The value is out of range for the target type.
+    OutOfRange,
+}
+
+impl<S: Int, T: Int + TryFrom<S>> TryFromPos<S> for Pos<T> {
+    fn try_from_pos(value: Pos<S>) -> Result<Self, TryFromPosError> {
+        let x = T::try_from(value.x).map_err(|_| TryFromPosError::OutOfRange)?;
+        let y = T::try_from(value.y).map_err(|_| TryFromPosError::OutOfRange)?;
+        Ok(Pos::new(x, y))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -470,5 +516,35 @@ mod tests {
         let pos = Pos::new(3, 4);
         let array: [i32; 2] = pos.into();
         assert_eq!(array, [3, 4]);
+    }
+
+    #[test]
+    fn try_from_pos_ok() {
+        let source: Pos<u8> = Pos::new(3, 4);
+        let convert = Pos::<i32>::try_from_pos(source).unwrap();
+        assert_eq!(convert.x, 3);
+        assert_eq!(convert.y, 4);
+    }
+
+    #[test]
+    fn try_from_pos_out_of_range() {
+        let source: Pos<u16> = Pos::new(7000, 8000);
+        let result = Pos::<u8>::try_from_pos(source);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn try_into_pos_ok() {
+        let source: Pos<u8> = Pos::new(3, 4);
+        let convert: Pos<i32> = source.try_into_pos().unwrap();
+        assert_eq!(convert.x, 3);
+        assert_eq!(convert.y, 4);
+    }
+
+    #[test]
+    fn try_into_pos_out_of_range() {
+        let source: Pos<u16> = Pos::new(7000, 8000);
+        let result: Result<Pos<u8>, TryFromPosError> = source.try_into_pos();
+        assert!(result.is_err());
     }
 }
