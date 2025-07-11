@@ -42,7 +42,7 @@ pub use view::{GridView, GridViewMut};
 
 pub mod impls;
 
-use crate::{HasSize, TryIntoPos};
+use crate::{HasSize, Rect, TryIntoPos};
 
 /// An error that can occur when creating a grid.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -106,11 +106,10 @@ pub trait GridReadExt: GridRead {
     /// Returns a sub-grid view of the grid, defined by the given rectangle.
     ///
     /// If the rectangle is out of bounds, it returns an empty view.
-    fn view(&self, rect: impl Into<crate::Rect<usize>>) -> GridView<Self, &Self, Self::Element>
+    fn view(&self, rect: Rect<usize>) -> GridView<Self, &Self, Self::Element>
     where
         Self: HasSize<Dim = usize> + Sized,
     {
-        let rect = rect.into();
         if rect.right() <= self.size().width && rect.bottom() <= self.size().height {
             unsafe { GridView::new_unchecked(self, rect) }
         } else {
@@ -126,12 +125,11 @@ pub trait GridWriteExt: GridWrite {
     /// If the rectangle is out of bounds, it returns an empty view.
     fn view_mut(
         &mut self,
-        rect: impl Into<crate::Rect<usize>>,
+        rect: Rect<usize>,
     ) -> GridViewMut<Self, &mut Self, Self::Element>
     where
         Self: HasSize<Dim = usize> + Sized,
     {
-        let rect = rect.into();
         if rect.right() <= self.size().width && rect.bottom() <= self.size().height {
             unsafe { GridViewMut::new_unchecked(self, rect) }
         } else {
