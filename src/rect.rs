@@ -12,29 +12,29 @@ use crate::{
 /// # Examples
 ///
 /// ```rust
-/// use ixy::{Rect, Pos};
+/// use ixy::{rect, Pos};
 ///
 /// let rect_ltrb = rect!(1, 2, 3, 4);
 /// let rect_tlbr = rect!(Pos::new(1, 2), Pos::new(3, 4));
 /// ```
 #[macro_export]
 macro_rules! rect {
-    ($tl: expr, $br: expr) => {
-        Rect {
-            l: if $tl.x < $br.x { $tl.x } else { $br.x },
-            t: if $tl.y < $br.y { $tl.y } else { $br.y },
-            r: if $tl.x < $br.x { $br.x } else { $tl.x },
-            b: if $tl.y < $br.y { $br.y } else { $tl.y },
-        }
-    };
-    ($l:expr, $t:expr, $r:expr, $b:expr) => {
-        Rect {
-            l: if $l < $r { $l } else { $r },
-            t: if $t < $b { $t } else { $b },
-            r: if $l < $r { $r } else { $l },
-            b: if $t < $b { $b } else { $t },
-        }
-    };
+    ($tl: expr, $br: expr) => {{
+        let tl = $tl;
+        let br = $br;
+        let l = if tl.x < br.x { tl.x } else { br.x };
+        let t = if tl.y < br.y { tl.y } else { br.y };
+        let r = if tl.x < br.x { br.x } else { tl.x };
+        let b = if tl.y < br.y { br.y } else { tl.y };
+        unsafe { $crate::Rect::from_ltrb_unchecked(l, t, r, b) }
+    }};
+    ($l:expr, $t:expr, $r:expr, $b:expr) => {{
+        let l = if $l < $r { $l } else { $r };
+        let t = if $t < $b { $t } else { $b };
+        let r = if $l < $r { $r } else { $l };
+        let b = if $t < $b { $b } else { $t };
+        unsafe { $crate::Rect::from_ltrb_unchecked(l, t, r, b) }
+    }};
 }
 
 /// A 2-dimensional rectangle with integer precision.
@@ -80,7 +80,7 @@ impl<T: Int> Rect<T> {
     /// # Examples
     ///
     /// ```rust
-    /// use ixy::Rect;
+    /// use ixy::{Pos, Rect};
     ///
     /// let rect = Rect::from_tlbr(Pos::new(1, 2), Pos::new(3, 4));
     /// assert!(rect.is_ok());
@@ -112,10 +112,10 @@ impl<T: Int> Rect<T> {
     /// ```rust
     /// use ixy::Rect;
     ///
-    /// let rect = Rect::with_ltrb(1, 2, 3, 4);
+    /// let rect = Rect::from_ltrb(1, 2, 3, 4);
     /// assert!(rect.is_ok());
     ///
-    /// let invalid_rect = Rect::with_ltrb(3, 2, 1, 4);
+    /// let invalid_rect = Rect::from_ltrb(3, 2, 1, 4);
     /// assert!(invalid_rect.is_err());
     /// ```
     pub fn from_ltrb(l: T, t: T, r: T, b: T) -> Result<Self, RectError> {
@@ -124,6 +124,15 @@ impl<T: Int> Rect<T> {
         } else {
             Ok(Self { l, t, r, b })
         }
+    }
+
+    /// Creates a new rectangle from the `l`eft, `t`op, `r`ight, and `b`ottom coordinates.
+    ///
+    /// # Safety
+    ///
+    /// This method does not check if the coordinates form a valid rectangle.
+    pub const unsafe fn from_ltrb_unchecked(l: T, t: T, r: T, b: T) -> Self {
+        Self { l, t, r, b }
     }
 
     /// Creates a new rectangle from the `l`eft and `t`op coordinates, and `w`idth and `h`eight.
@@ -183,7 +192,7 @@ impl<T: Int> Rect<T> {
     /// ```rust
     /// use ixy::{Rect, Pos};
     ///
-    /// let rect = Rect::with_ltrb(1, 2, 3, 4).unwrap();
+    /// let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
     /// assert_eq!(rect.top_left(), Pos::new(1, 2));
     /// ```
     pub const fn top_left(&self) -> Pos<T> {
@@ -197,7 +206,7 @@ impl<T: Int> Rect<T> {
     /// ```rust
     /// use ixy::{Rect, Pos};
     ///
-    /// let rect = Rect::with_ltrb(1, 2, 3, 4).unwrap();
+    /// let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
     /// assert_eq!(rect.top_right(), Pos::new(3, 2));
     /// ```
     pub const fn top_right(&self) -> Pos<T> {
@@ -211,7 +220,7 @@ impl<T: Int> Rect<T> {
     /// ```rust
     /// use ixy::{Rect, Pos};
     ///
-    /// let rect = Rect::with_ltrb(1, 2, 3, 4).unwrap();
+    /// let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
     /// assert_eq!(rect.bottom_right(), Pos::new(3, 4));
     /// ```
     pub const fn bottom_right(&self) -> Pos<T> {
@@ -225,7 +234,7 @@ impl<T: Int> Rect<T> {
     /// ```rust
     /// use ixy::{Rect, Pos};
     ///
-    /// let rect = Rect::with_ltrb(1, 2, 3, 4).unwrap();
+    /// let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
     /// assert_eq!(rect.bottom_left(), Pos::new(1, 4));
     /// ```
     pub const fn bottom_left(&self) -> Pos<T> {
@@ -239,7 +248,7 @@ impl<T: Int> Rect<T> {
     /// ```rust
     /// use ixy::Rect;
     ///
-    /// let rect = Rect::with_ltrb(1, 2, 3, 4).unwrap();
+    /// let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
     /// assert_eq!(rect.width(), 2);
     /// ```
     pub fn width(&self) -> T {
@@ -253,7 +262,7 @@ impl<T: Int> Rect<T> {
     /// ```rust
     /// use ixy::Rect;
     ///
-    /// let rect = Rect::with_ltrb(1, 2, 3, 4).unwrap();
+    /// let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
     /// assert_eq!(rect.height(), 2);
     /// ```
     pub fn height(&self) -> T {
@@ -272,7 +281,7 @@ impl<T: Int> Rect<T> {
     /// ```rust
     /// use ixy::Rect;
     ///
-    /// let rect = Rect::with_ltrb(1, 2, 3, 4).unwrap();
+    /// let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
     /// assert_eq!(rect.area(), 4);
     /// ```
     pub fn area(&self) -> T {

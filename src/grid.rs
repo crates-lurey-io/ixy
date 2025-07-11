@@ -1,7 +1,19 @@
 mod linear;
-pub use linear::LinearGridBuf;
+pub use linear::GridBuf;
 
-use crate::{HasSize, TryIntoPos};
+mod view;
+pub use view::{GridView, GridViewMut};
+
+pub mod impls;
+
+use crate::TryIntoPos;
+
+/// An error that can occur when creating a grid.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GridError {
+    /// The dimensions of the grid are invalid compared to the data provided.
+    InvalidDimensions,
+}
 
 /// A grid-like structure that allows unchecked read access to its elements.
 pub trait GridReadUnchecked {
@@ -26,19 +38,7 @@ pub trait GridRead {
     /// Returns a reference to the element at the given position.
     ///
     /// Returns `None` if the position is out of bounds.
-    fn get(&self, pos: impl TryIntoPos<usize>) -> Option<&Self::Element>;
-}
-
-impl<G: GridReadUnchecked + HasSize<Dim = usize>> GridRead for G {
-    type Element = G::Element;
-
-    fn get(&self, pos: impl TryIntoPos<usize>) -> Option<&Self::Element> {
-        let (x, y) = *pos.try_into_pos().ok()?.as_ref();
-        if x >= self.width() || y >= self.height() {
-            return None;
-        }
-        Some(unsafe { self.get_unchecked(x, y) })
-    }
+    fn get(&self, pos: impl TryIntoPos<usize>) -> Option<&<Self as GridRead>::Element>;
 }
 
 /// A grid-like structure that allows unchecked mutable access to its elements.
@@ -62,28 +62,17 @@ pub trait GridWrite {
     type Element;
 
     /// Sets the element at the given position to the specified value.
-    fn set(&mut self, pos: impl TryIntoPos<usize>, value: Self::Element);
-}
-
-impl<Grid: GridWriteUnchecked + HasSize<Dim = usize>> GridWrite for Grid {
-    type Element = Grid::Element;
-
-    fn set(&mut self, pos: impl TryIntoPos<usize>, value: Self::Element) {
-        if let Ok(pos) = pos.try_into_pos() {
-            let (x, y) = *pos.as_ref();
-            if x >= self.width() || y >= self.height() {
-                return; // Out of bounds, do nothing
-            }
-            unsafe { self.set_unchecked(x, y, value) };
-        }
-    }
+    fn set(&mut self, pos: impl TryIntoPos<usize>, value: <Self as GridWrite>::Element);
 }
 
 #[cfg(test)]
 mod tests {
     extern crate alloc;
 
-    use crate::Pos;
+    use crate::{
+        HasSize, Pos,
+        index::{Layout, RowMajor},
+    };
 
     use super::*;
     use alloc::{vec, vec::Vec};
@@ -101,11 +90,27 @@ mod tests {
         }
     }
 
+    impl GridRead for TestGridUncheckedAndSize {
+        type Element = i32;
+
+        fn get(&self, pos: impl TryIntoPos<usize>) -> Option<&<Self as GridRead>::Element> {
+            unsafe { impls::get_from_unchecked(self, pos) }
+        }
+    }
+
     impl GridWriteUnchecked for TestGridUncheckedAndSize {
         type Element = i32;
 
         unsafe fn set_unchecked(&mut self, x: usize, y: usize, value: Self::Element) {
             self.data[y * self.width + x] = value;
+        }
+    }
+
+    impl GridWrite for TestGridUncheckedAndSize {
+        type Element = i32;
+
+        fn set(&mut self, pos: impl TryIntoPos<usize>, value: <Self as GridWrite>::Element) {
+            unsafe { impls::set_from_unchecked(self, pos, value) }
         }
     }
 
@@ -214,6 +219,50 @@ mod tests {
             data: 
             vec![0, 0, 0, 
                  0, 0, 0],
+            width: 3,
+        };
+
+        grid.set(Pos::new(0, 0), 10);
+        grid.set(Pos::new(1, 0), 20);
+        grid.set(Pos::new(2, 1), 30);
+
+        assert_eq!(grid.get(Pos::new(0, 0)), Some(&10));
+        assert_eq!(grid.get(Pos::new(1, 0)), Some(&20));
+        assert_eq!(grid.get(Pos::new(2, 1)), Some(&30));
+        assert_eq!(grid.get(Pos::new(1, 1)), Some(&0));
+    }
+
+    struct TestGrid {
+        data: Vec<i32>,
+        width: usize,
+    }
+
+    impl GridRead for TestGrid {
+        type Element = i32;
+
+        fn get(&self, pos: impl crate::TryIntoPos<usize>) -> Option<&Self::Element> {
+            let pos = pos.try_into_pos().ok()?;
+            self.data.get(RowMajor::to_1d(pos, self.width).index)
+        }
+    }
+
+    impl GridWrite for TestGrid {
+        type Element = i32;
+
+        fn set(&mut self, pos: impl crate::TryIntoPos<usize>, value: Self::Element) {
+            if let Ok(pos) = pos.try_into_pos() {
+                let index = RowMajor::to_1d(pos, self.width).index;
+                if index < self.data.len() {
+                    self.data[index] = value;
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn grid_read_write_consistency() {
+        let mut grid = TestGrid {
+            data: vec![0; 6],
             width: 3,
         };
 

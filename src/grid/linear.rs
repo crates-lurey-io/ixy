@@ -1,8 +1,8 @@
 use core::marker::PhantomData;
 
 use crate::{
-    HasSize, Pos,
-    grid::{GridReadUnchecked, GridWriteUnchecked},
+    HasSize, Pos, Size,
+    grid::{GridError, GridRead, GridReadUnchecked, GridWrite, GridWriteUnchecked, impls},
     index::{ColMajor, Layout, RowMajor},
 };
 
@@ -16,7 +16,7 @@ use crate::{
 ///
 /// ```rust
 /// use ixy::{
-///   grid::{GridRead, GridWrite, LinearGridBuf},
+///   grid::GridBuf,
 ///   HasSize,
 ///   Pos,
 ///   Size,
@@ -29,7 +29,7 @@ use crate::{
 /// }
 ///
 /// let cells = vec![Tile::Empty; 6];
-/// let mut grid = LinearGridBuf::from_row_major(3, 2, cells).unwrap();
+/// let mut grid = GridBuf::from_row_major(3, 2, cells).unwrap();
 ///
 /// assert_eq!(grid.size(), Size { width: 3, height: 2 });
 /// assert_eq!(grid.get(Pos::new(0, 0)), Some(&Tile::Empty));
@@ -37,24 +37,33 @@ use crate::{
 /// grid.set(Pos::new(0, 0), Tile::Wall);
 /// assert_eq!(grid.get(Pos::new(0, 0)), Some(&Tile::Wall));
 /// ```
-pub struct LinearGridBuf<E, T: AsRef<[E]>, L: Layout = RowMajor> {
+pub struct GridBuf<E, T, L: Layout = RowMajor> {
     element: PhantomData<E>,
     data: T,
     width: usize,
+    height: usize,
     layout: PhantomData<L>,
 }
 
-/// An error that can occur when creating a `LinearGrid`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum LinearGridError {
-    /// The dimensions of the grid are invalid compared to the data provided.
-    InvalidDimensions,
+impl<E, T, L> GridBuf<E, T, L>
+where
+    L: Layout,
+{
+    /// Returns the width of the grid.
+    pub fn width(&self) -> usize {
+        self.width
+    }
+
+    /// Returns the height of the grid.
+    pub fn height(&self) -> usize {
+        self.height
+    }
 }
 
-impl<E, T, L> LinearGridBuf<E, T, L>
+impl<E, T, L> GridBuf<E, T, L>
 where
-    T: AsRef<[E]>,
     L: Layout,
+    T: AsRef<[E]>,
 {
     /// Creates a new `LinearGridBuf` with the given width, height, and existing cells.
     ///
@@ -63,23 +72,44 @@ where
     /// # Errors
     ///
     /// If the data's length does not match the expected number of cells (width * height).
-    pub fn from_cells(width: usize, height: usize, data: T) -> Result<Self, LinearGridError> {
+    pub fn from_cells(width: usize, height: usize, data: T) -> Result<Self, GridError> {
         let length = width
             .checked_mul(height)
-            .ok_or(LinearGridError::InvalidDimensions)?;
+            .ok_or(GridError::InvalidDimensions)?;
         if data.as_ref().len() != length {
-            return Err(LinearGridError::InvalidDimensions);
+            return Err(GridError::InvalidDimensions);
         }
         Ok(Self {
             element: PhantomData,
             data,
             width,
+            height,
             layout: PhantomData,
         })
     }
+
+    /// Returns a reference to the element at the given position.
+    ///
+    /// Returns `None` if the position is out of bounds.
+    pub fn get(&self, pos: impl crate::TryIntoPos<usize>) -> Option<&E> {
+        GridRead::get(self, pos)
+    }
 }
 
-impl<E, T> LinearGridBuf<E, T, RowMajor>
+impl<E, T, L> GridBuf<E, T, L>
+where
+    T: AsMut<[E]>,
+    L: Layout,
+{
+    /// Sets the element at the given position to the specified value.
+    ///
+    /// If the position is out of bounds, this method does nothing.
+    pub fn set(&mut self, pos: impl crate::TryIntoPos<usize>, value: E) {
+        GridWrite::set(self, pos, value);
+    }
+}
+
+impl<E, T> GridBuf<E, T, RowMajor>
 where
     T: AsRef<[E]>,
 {
@@ -90,12 +120,12 @@ where
     /// # Errors
     ///
     /// If the data's length does not match the expected number of cells (width * height).
-    pub fn from_row_major(width: usize, height: usize, data: T) -> Result<Self, LinearGridError> {
+    pub fn from_row_major(width: usize, height: usize, data: T) -> Result<Self, GridError> {
         Self::from_cells(width, height, data)
     }
 }
 
-impl<E, T> LinearGridBuf<E, T, ColMajor>
+impl<E, T> GridBuf<E, T, ColMajor>
 where
     T: AsRef<[E]>,
 {
@@ -106,27 +136,26 @@ where
     /// # Errors
     ///
     /// If the data's length does not match the expected number of cells (width * height).
-    pub fn from_col_major(width: usize, height: usize, data: T) -> Result<Self, LinearGridError> {
+    pub fn from_col_major(width: usize, height: usize, data: T) -> Result<Self, GridError> {
         Self::from_cells(width, height, data)
     }
 }
 
-impl<E, T, L> HasSize for LinearGridBuf<E, T, L>
+impl<E, T, L> HasSize for GridBuf<E, T, L>
 where
-    T: AsRef<[E]>,
     L: Layout,
 {
     type Dim = usize;
 
-    fn size(&self) -> crate::Size<usize> {
-        crate::Size {
+    fn size(&self) -> Size<usize> {
+        Size {
             width: self.width,
-            height: self.data.as_ref().len() / self.width,
+            height: self.height,
         }
     }
 }
 
-impl<E, T, L> GridReadUnchecked for LinearGridBuf<E, T, L>
+impl<E, T, L> GridReadUnchecked for GridBuf<E, T, L>
 where
     T: AsRef<[E]>,
     L: Layout,
@@ -139,9 +168,21 @@ where
     }
 }
 
-impl<E, T, L> GridWriteUnchecked for LinearGridBuf<E, T, L>
+impl<E, T, L> GridRead for GridBuf<E, T, L>
 where
-    T: AsRef<[E]> + AsMut<[E]>,
+    T: AsRef<[E]>,
+    L: Layout,
+{
+    type Element = E;
+
+    fn get(&self, pos: impl crate::TryIntoPos<usize>) -> Option<&<Self as GridRead>::Element> {
+        unsafe { impls::get_from_unchecked(self, pos) }
+    }
+}
+
+impl<E, T, L> GridWriteUnchecked for GridBuf<E, T, L>
+where
+    T: AsMut<[E]>,
     L: Layout,
 {
     type Element = E;
@@ -152,15 +193,57 @@ where
     }
 }
 
+impl<E, T, L> GridWrite for GridBuf<E, T, L>
+where
+    T: AsMut<[E]>,
+    L: Layout,
+{
+    type Element = E;
+
+    fn set(&mut self, pos: impl crate::TryIntoPos<usize>, value: <Self as GridWrite>::Element) {
+        unsafe { impls::set_from_unchecked(self, pos, value) }
+    }
+}
+
+impl<E, T, L> AsRef<[E]> for GridBuf<E, T, L>
+where
+    L: Layout,
+    T: AsRef<[E]>,
+{
+    fn as_ref(&self) -> &[E] {
+        self.data.as_ref()
+    }
+}
+
+impl<E, T, L> AsMut<[E]> for GridBuf<E, T, L>
+where
+    L: Layout,
+    T: AsMut<[E]>,
+{
+    fn as_mut(&mut self) -> &mut [E] {
+        self.data.as_mut()
+    }
+}
+
+impl<E, T, L> IntoIterator for GridBuf<E, T, L>
+where
+    L: Layout,
+    T: AsRef<[E]> + IntoIterator<Item = E>,
+{
+    type Item = E;
+    type IntoIter = T::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.data.into_iter()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     extern crate alloc;
 
     use super::*;
-    use crate::{
-        Size,
-        grid::{GridRead, GridWrite},
-    };
+    use crate::Size;
     use alloc::vec;
 
     #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -174,7 +257,7 @@ mod tests {
     fn impl_vec() {
         // Using a vec as a backing-store.
         let cells = vec![Tile::Empty; 6];
-        let mut grid = LinearGridBuf::from_row_major(3, 2, cells).unwrap();
+        let mut grid = GridBuf::from_row_major(3, 2, cells).unwrap();
 
         assert_eq!(
             grid.size(),
@@ -194,7 +277,7 @@ mod tests {
     fn impl_array() {
         // Using an array as a backing-store.
         let cells = [Tile::Empty; 6];
-        let mut grid = LinearGridBuf::from_row_major(3, 2, cells).unwrap();
+        let mut grid = GridBuf::from_row_major(3, 2, cells).unwrap();
 
         assert_eq!(
             grid.size(),
@@ -214,7 +297,7 @@ mod tests {
     fn impl_slice() {
         // Using a mutable slice as a backing-store.
         let mut cells = [Tile::Empty; 6];
-        let mut grid = LinearGridBuf::from_row_major(3, 2, &mut cells).unwrap();
+        let mut grid = GridBuf::from_row_major(3, 2, &mut cells).unwrap();
 
         assert_eq!(
             grid.size(),
@@ -228,5 +311,39 @@ mod tests {
 
         grid.set(Pos::new(0, 0), Tile::Wall);
         assert_eq!(grid.get(Pos::new(0, 0)), Some(&Tile::Wall));
+    }
+
+    #[test]
+    fn as_ref() {
+        let cells = vec![Tile::Empty; 6];
+        let grid = GridBuf::from_row_major(3, 2, cells).unwrap();
+        let slice: &[Tile] = grid.as_ref();
+        assert_eq!(slice.len(), 6);
+    }
+
+    #[test]
+    fn as_mut() {
+        let cells = vec![Tile::Empty; 6];
+        let mut grid = GridBuf::from_row_major(3, 2, cells).unwrap();
+        let slice: &mut [Tile] = grid.as_mut();
+        assert_eq!(slice.len(), 6);
+    }
+
+    #[test]
+    fn into_iter() {
+        // Using a vec as a backing-store and iterating over it.
+        #[rustfmt::skip]
+        let cells = vec![
+            Tile::Empty, Tile::Wall,
+            Tile::Wall,  Tile::Empty,
+        ];
+
+        let grid = GridBuf::from_row_major(2, 2, cells).unwrap();
+        let mut iter = grid.into_iter();
+        assert_eq!(iter.next(), Some(Tile::Empty));
+        assert_eq!(iter.next(), Some(Tile::Wall));
+        assert_eq!(iter.next(), Some(Tile::Wall));
+        assert_eq!(iter.next(), Some(Tile::Empty));
+        assert_eq!(iter.next(), None);
     }
 }

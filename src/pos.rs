@@ -307,6 +307,24 @@ impl<T: SignedInt> ops::Neg for Pos<T> {
     }
 }
 
+impl<T: Int> ops::Add<Pos<T>> for Pos<T> {
+    type Output = Self;
+
+    fn add(self, rhs: Pos<T>) -> Self::Output {
+        Self {
+            x: self.x + rhs.x,
+            y: self.y + rhs.y,
+        }
+    }
+}
+
+impl<T: Int> ops::AddAssign<Pos<T>> for Pos<T> {
+    fn add_assign(&mut self, rhs: Pos<T>) {
+        self.x += rhs.x;
+        self.y += rhs.y;
+    }
+}
+
 impl<T: Int> ops::Mul<T> for Pos<T> {
     type Output = Self;
 
