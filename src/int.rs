@@ -1,3 +1,7 @@
+//! Sealed traits implemented by all of Rust's primitive integer types.
+//!
+//! These traits provides a common interface for working with integers generically.
+
 use core::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
     Mul, MulAssign, Neg, Not, Rem, RemAssign, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,

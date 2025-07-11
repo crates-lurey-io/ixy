@@ -9,6 +9,32 @@ use crate::{
 };
 
 /// A grid that provides read-only access as a view of a larger grid.
+///
+/// Grid views are useful for creating sub-regions of a grid without copying the data.
+///
+/// See also: [`GridReadExt::view`](crate::grid::GridReadExt::view).
+///
+/// # Examples
+///
+/// ```rust
+/// use ixy::{HasSize, Pos, Rect, Size, grid::{GridBuf, GridRead, GridView}};
+///
+/// #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// enum Tile {
+///   Empty,
+///   Wall,
+/// }
+///
+/// let mut cells = vec![Tile::Empty; 9];
+/// cells[8] = Tile::Wall;
+///
+/// let grid = GridBuf::from_row_major(3, 3, cells).unwrap();
+/// let view = GridView::<_, _, Tile>::new(&grid, Rect::from_ltwh_unsigned(1, 1, 2, 2)).unwrap();
+///
+/// assert_eq!(view.size(), Size { width: 2, height: 2 });
+/// assert_eq!(view.get(Pos::new(0, 0)), Some(&Tile::Empty));
+/// assert_eq!(view.get(Pos::new(1, 1)), Some(&Tile::Wall));
+/// ```
 pub struct GridView<T, G: Deref<Target = T>, E> {
     grid: G,
     rect: Rect<usize>,
@@ -16,6 +42,15 @@ pub struct GridView<T, G: Deref<Target = T>, E> {
 }
 
 impl<T, G: Deref<Target = T>, E> GridView<T, G, E> {
+    /// Creates an empty `GridView` (e.g. a `0x0` region).
+    pub const fn empty(grid: G) -> Self {
+        Self {
+            grid,
+            rect: Rect::EMPTY,
+            cell: PhantomData,
+        }
+    }
+
     /// Creates a new `GridView` with the specified sub-bounds defined by `rect`.
     ///
     /// # Errors
@@ -83,6 +118,36 @@ where
     }
 }
 
+/// A grid that provides mutable access as a view of a larger grid.
+///
+/// `GridViewMut` enables mutable access to a sub-region of a larger grid without copying the data.
+///
+/// See also: [`GridWriteExt::view_mut`](crate::grid::GridWriteExt::view_mut).
+///
+/// # Examples
+///
+/// ```rust
+/// use ixy::{HasSize, Pos, Rect, Size, grid::{GridBuf, GridWrite, GridViewMut}};
+///
+/// #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// enum Tile {
+///   Empty,
+///   Wall,
+/// }
+///
+/// let mut cells = vec![Tile::Empty; 9];
+/// let mut grid = GridBuf::from_row_major(3, 3, cells).unwrap();
+/// let rect = Rect::from_ltwh_unsigned(1, 1, 2, 2);
+/// let mut view = GridViewMut::<_, _, Tile>::new(&mut grid, rect).unwrap();
+///
+/// assert_eq!(view.size(), Size { width: 2, height: 2 });
+///
+/// view.set(Pos::new(0, 0), Tile::Wall);
+/// view.set(Pos::new(1, 1), Tile::Wall);
+///
+/// assert_eq!(grid.get(Pos::new(1, 1)), Some(&Tile::Wall));
+/// assert_eq!(grid.get(Pos::new(2, 2)), Some(&Tile::Wall));
+/// ```
 pub struct GridViewMut<T, G: DerefMut<Target = T>, E> {
     grid: G,
     rect: Rect<usize>,
@@ -90,6 +155,15 @@ pub struct GridViewMut<T, G: DerefMut<Target = T>, E> {
 }
 
 impl<T, G: DerefMut<Target = T>, E> GridViewMut<T, G, E> {
+    /// Creates an empty `GridViewMut` (e.g. a `0x0` region).
+    pub const fn empty(grid: G) -> Self {
+        Self {
+            grid,
+            rect: Rect::EMPTY,
+            cell: PhantomData,
+        }
+    }
+
     /// Creates a new `GridViewMut` with the specified sub-bounds defined by `rect`.
     ///
     /// # Errors

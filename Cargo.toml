@@ -3,9 +3,9 @@ name = "ixy"
 edition = "2024"
 license = "MIT"
 
-description = "A terse, no-std crate for 2D integer geometry"
+description = "A minimal, no-std compatible crate for 2D integer geometry"
 repository = "https://github.com/crates-lurey-io/ixy"
-version = "0.0.0-reserved"
+version = "0.1.0"
 
 [lints.clippy]
 pedantic = "deny"

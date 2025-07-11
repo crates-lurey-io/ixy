@@ -1,3 +1,5 @@
+//! Reusable bits for implementing grids.
+
 use crate::{
     HasSize, TryIntoPos,
     grid::{GridReadUnchecked, GridWriteUnchecked},
@@ -9,8 +11,7 @@ use crate::{
 ///
 /// # Safety
 ///
-/// This function assumes that [`HasSize::size`](crate::HasSize::size) contains valid dimensions for
-/// the grid.
+/// This function assumes that [`HasSize::size`] contains valid dimensions for the grid.
 pub unsafe fn get_from_unchecked<E>(
     grid: &(impl GridReadUnchecked<Element = E> + HasSize<Dim = usize>),
     pos: impl TryIntoPos<usize>,
@@ -45,8 +46,7 @@ pub unsafe fn get_from_unchecked_with_size<E>(
 ///
 /// # Safety
 ///
-/// This function assumes that [`HasSize::size`](crate::HasSize::size) contains valid dimensions for
-/// the grid.
+/// This function assumes that [`HasSize::size`] contains valid dimensions for the grid.
 pub unsafe fn set_from_unchecked<E>(
     grid: &mut (impl GridWriteUnchecked<Element = E> + HasSize<Dim = usize>),
     pos: impl TryIntoPos<usize>,

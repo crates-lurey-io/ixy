@@ -1,3 +1,30 @@
+//! Tools for mapping between 2D grid coordinates and 1D memory indices.
+//!
+//! This module provides a standard interface, [`Layout`], for defining how a 2D grid is stored in
+//! linear memory. It includes the two most common memory layouts:
+//!
+//! * [`RowMajor`]: Elements in the same row are contiguous in memory.
+//! * [`ColMajor`]: Elements in the same column are contiguous in memory.
+//!
+//! [`Index`] is a wrapper around a `usize` that is tagged with a specific layout and position type.
+//!
+//! # Examples
+//!
+//! ```rust
+//! use ixy::{Pos, index::{Index, RowMajor, ColMajor, Layout}};
+//!
+//! let pos = Pos::new(2, 3);
+//! let width = 5;
+//!
+//! // Convert a 2D position to a 1D index in row-major layout
+//! let index_row = RowMajor::to_1d(pos, width);
+//! assert_eq!(index_row.index, 17); // 3 * 5 + 2
+//!
+//! // Convert a 1D index back to a 2D position in row-major layout
+//! let pos_row = RowMajor::to_2d(index_row, width);
+//! assert_eq!(pos_row, Pos::new(2, 3));
+//! ```
+
 use core::marker::PhantomData;
 
 use crate::{Pos, int::Int};

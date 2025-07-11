@@ -55,7 +55,7 @@ macro_rules! rect {
 ///   int b; // y coordinate of the bottom-right corner
 /// }
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct Rect<T: Int = i32> {
     l: T,
     t: T,
@@ -71,6 +71,14 @@ pub enum RectError {
 }
 
 impl<T: Int> Rect<T> {
+    /// An empty rectangle (e.g. a `0x0` region at the origin).
+    pub const EMPTY: Self = Self {
+        l: T::ZERO,
+        t: T::ZERO,
+        r: T::ZERO,
+        b: T::ZERO,
+    };
+
     /// Creates a new rectangle from the top-left and bottom-right corners.
     ///
     /// # Errors

@@ -1,3 +1,39 @@
+//! Provides a standard interface for 2D grid-like data structures.
+//!
+//! A default implementation, based on linear (1-dimensional) memory, is provided as [`GridBuf`].
+//!
+//! Cheap views into existing grids can be created using [`GridView`] and [`GridViewMut`].
+//!
+//! Low-level interfaces are provided for interopability:
+//! - [`GridRead`], analogous to the `Read` trait, for reading elements from a grid-like structure.
+//! - [`GridWrite`], analogous to the `Write` trait, for writing elements to a grid-like structure.
+//!
+//! Performance sensitive code can consider using the unchecked (`unsafe`) variants:
+//! - [`GridReadUnchecked`], for unchecked read access to elements in a grid-like structure.
+//! - [`GridWriteUnchecked`], for unchecked write access to elements in a grid-like structure.
+//!
+//! For additional functionality, see [`GridReadExt`] and [`GridWriteExt`].
+//!
+//! # Examples
+//!
+//! ```rust
+//! use ixy::{HasSize, Pos, Size, grid::GridBuf};
+//!
+//! #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+//! enum Tile {
+//!   Empty,
+//!   Wall,
+//! }
+//!
+//! let cells = vec![Tile::Empty; 6];
+//! let mut grid = GridBuf::from_row_major(3, 2, cells).unwrap();
+//!
+//! assert_eq!(grid.size(), Size { width: 3, height: 2 });
+//! assert_eq!(grid.get(Pos::new(0, 0)), Some(&Tile::Empty));
+//!
+//! grid.set(Pos::new(0, 0), Tile::Wall);
+//! assert_eq!(grid.get(Pos::new(0, 0)), Some(&Tile::Wall));
+//! ```
 mod linear;
 pub use linear::GridBuf;
 
@@ -6,7 +42,7 @@ pub use view::{GridView, GridViewMut};
 
 pub mod impls;
 
-use crate::TryIntoPos;
+use crate::{HasSize, TryIntoPos};
 
 /// An error that can occur when creating a grid.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -63,6 +99,45 @@ pub trait GridWrite {
 
     /// Sets the element at the given position to the specified value.
     fn set(&mut self, pos: impl TryIntoPos<usize>, value: <Self as GridWrite>::Element);
+}
+
+/// Extensions on [`GridRead`].
+pub trait GridReadExt: GridRead {
+    /// Returns a sub-grid view of the grid, defined by the given rectangle.
+    ///
+    /// If the rectangle is out of bounds, it returns an empty view.
+    fn view(&self, rect: impl Into<crate::Rect<usize>>) -> GridView<Self, &Self, Self::Element>
+    where
+        Self: HasSize<Dim = usize> + Sized,
+    {
+        let rect = rect.into();
+        if rect.right() <= self.size().width && rect.bottom() <= self.size().height {
+            unsafe { GridView::new_unchecked(self, rect) }
+        } else {
+            GridView::empty(self)
+        }
+    }
+}
+
+/// Extensions on [`GridWrite`].
+pub trait GridWriteExt: GridWrite {
+    /// Returns a mutable sub-grid view of the grid, defined by the given rectangle.
+    ///
+    /// If the rectangle is out of bounds, it returns an empty view.
+    fn view_mut(
+        &mut self,
+        rect: impl Into<crate::Rect<usize>>,
+    ) -> GridViewMut<Self, &mut Self, Self::Element>
+    where
+        Self: HasSize<Dim = usize> + Sized,
+    {
+        let rect = rect.into();
+        if rect.right() <= self.size().width && rect.bottom() <= self.size().height {
+            unsafe { GridViewMut::new_unchecked(self, rect) }
+        } else {
+            GridViewMut::empty(self)
+        }
+    }
 }
 
 #[cfg(test)]
