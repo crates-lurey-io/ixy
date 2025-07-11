@@ -123,10 +123,7 @@ pub trait GridWriteExt: GridWrite {
     /// Returns a mutable sub-grid view of the grid, defined by the given rectangle.
     ///
     /// If the rectangle is out of bounds, it returns an empty view.
-    fn view_mut(
-        &mut self,
-        rect: Rect<usize>,
-    ) -> GridViewMut<Self, &mut Self, Self::Element>
+    fn view_mut(&mut self, rect: Rect<usize>) -> GridViewMut<Self, &mut Self, Self::Element>
     where
         Self: HasSize<Dim = usize> + Sized,
     {
@@ -202,8 +199,8 @@ mod tests {
     fn grid_read_from_unchecked_ok() {
         #[rustfmt::skip]
         let grid = TestGridUncheckedAndSize {
-            data: 
-            vec![1, 2, 3, 
+            data:
+            vec![1, 2, 3,
                  4, 5, 6],
             width: 3,
         };
@@ -215,8 +212,8 @@ mod tests {
     fn grid_read_from_unchecked_invalid_pos() {
         #[rustfmt::skip]
         let grid = TestGridUncheckedAndSize {
-            data: 
-            vec![1, 2, 3, 
+            data:
+            vec![1, 2, 3,
                  4, 5, 6],
             width: 3,
         };
@@ -229,8 +226,8 @@ mod tests {
     fn grid_read_from_unchecked_out_of_range_pos() {
         #[rustfmt::skip]
         let grid = TestGridUncheckedAndSize {
-            data: 
-            vec![1, 2, 3, 
+            data:
+            vec![1, 2, 3,
                  4, 5, 6],
             width: 3,
         };
@@ -243,8 +240,8 @@ mod tests {
     fn grid_write_from_unchecked_ok() {
         #[rustfmt::skip]
         let mut grid = TestGridUncheckedAndSize {
-            data: 
-            vec![1, 2, 3, 
+            data:
+            vec![1, 2, 3,
                  4, 5, 6],
             width: 3,
         };
@@ -257,8 +254,8 @@ mod tests {
     fn grid_write_from_unchecked_invalid_pos() {
         #[rustfmt::skip]
         let mut grid = TestGridUncheckedAndSize {
-            data: 
-            vec![1, 2, 3, 
+            data:
+            vec![1, 2, 3,
                  4, 5, 6],
             width: 3,
         };
@@ -273,8 +270,8 @@ mod tests {
     fn grid_write_from_unchecked_out_of_range_pos() {
         #[rustfmt::skip]
         let mut grid = TestGridUncheckedAndSize {
-            data: 
-            vec![1, 2, 3, 
+            data:
+            vec![1, 2, 3,
                  4, 5, 6],
             width: 3,
         };
@@ -289,8 +286,8 @@ mod tests {
     fn grid_write_and_read_consistency() {
         #[rustfmt::skip]
         let mut grid = TestGridUncheckedAndSize {
-            data: 
-            vec![0, 0, 0, 
+            data:
+            vec![0, 0, 0,
                  0, 0, 0],
             width: 3,
         };
