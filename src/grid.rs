@@ -41,11 +41,11 @@ mod linear;
 pub use linear::GridBuf;
 
 mod view;
-pub use view::{GridSubView, GridSubViewMut, GridView, GridViewMut};
+pub use view::{GridSubView, GridView};
 
 pub mod impls;
 
-use crate::{HasSize, Rect, TryIntoPos};
+use crate::{Rect, TryIntoPos};
 
 /// An error that can occur when creating a grid.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -196,40 +196,6 @@ pub trait GridWrite {
 
     /// Sets the element at the given position to the specified value.
     fn set(&mut self, pos: impl TryIntoPos<usize>, value: <Self as GridWrite>::Element);
-}
-
-/// Extensions on [`GridRead`].
-pub trait GridReadExt: GridRead {
-    /// Returns a sub-grid view of the grid, defined by the given rectangle.
-    ///
-    /// If the rectangle is out of bounds, it returns an empty view.
-    fn view(&self, rect: Rect<usize>) -> GridView<Self, &Self, Self::Element>
-    where
-        Self: HasSize<Dim = usize> + Sized,
-    {
-        if rect.right() <= self.size().width && rect.bottom() <= self.size().height {
-            unsafe { GridView::new_unchecked(self, rect) }
-        } else {
-            GridView::empty(self)
-        }
-    }
-}
-
-/// Extensions on [`GridWrite`].
-pub trait GridWriteExt: GridWrite {
-    /// Returns a mutable sub-grid view of the grid, defined by the given rectangle.
-    ///
-    /// If the rectangle is out of bounds, it returns an empty view.
-    fn view_mut(&mut self, rect: Rect<usize>) -> GridViewMut<Self, &mut Self, Self::Element>
-    where
-        Self: HasSize<Dim = usize> + Sized,
-    {
-        if rect.right() <= self.size().width && rect.bottom() <= self.size().height {
-            unsafe { GridViewMut::new_unchecked(self, rect) }
-        } else {
-            GridViewMut::empty(self)
-        }
-    }
 }
 
 #[cfg(test)]

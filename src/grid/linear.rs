@@ -275,13 +275,21 @@ mod tests {
 
     use super::*;
     use crate::Size;
-    use alloc::vec;
+    use alloc::{vec, vec::Vec};
 
     #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
     enum Tile {
         #[default]
         Empty,
         Wall,
+    }
+
+    #[test]
+    fn impl_invalid_dimensions() {
+        // Attempting to create a grid with invalid dimensions should return an error.
+        let cells = vec![Tile::Empty; 5];
+        let grid = GridBuf::<Tile, Vec<Tile>>::from_row_major(3, 2, cells);
+        assert!(grid.is_err());
     }
 
     #[test]
@@ -345,6 +353,24 @@ mod tests {
     }
 
     #[test]
+    fn col_major() {
+        // Using a vec as a backing-store and iterating over it in column-major order.
+        #[rustfmt::skip]
+        let cells = vec![
+            Tile::Empty, Tile::Wall,
+            Tile::Wall,  Tile::Empty,
+        ];
+
+        let grid = GridBuf::from_col_major(2, 2, cells).unwrap();
+        let mut iter = grid.into_iter();
+        assert_eq!(iter.next(), Some(Tile::Empty));
+        assert_eq!(iter.next(), Some(Tile::Wall));
+        assert_eq!(iter.next(), Some(Tile::Wall));
+        assert_eq!(iter.next(), Some(Tile::Empty));
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
     fn as_ref() {
         let cells = vec![Tile::Empty; 6];
         let grid = GridBuf::from_row_major(3, 2, cells).unwrap();
@@ -376,5 +402,34 @@ mod tests {
         assert_eq!(iter.next(), Some(Tile::Wall));
         assert_eq!(iter.next(), Some(Tile::Empty));
         assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn size() {
+        let cells = vec![Tile::Empty; 6];
+        let grid = GridBuf::from_row_major(3, 2, cells).unwrap();
+        assert_eq!(grid.width(), 3);
+        assert_eq!(grid.height(), 2);
+    }
+
+    #[test]
+    fn get_mut() {
+        let cells = vec![Tile::Empty; 6];
+        let mut grid = GridBuf::from_row_major(3, 2, cells).unwrap();
+
+        assert_eq!(grid.get_mut(Pos::new(0, 0)), Some(&mut Tile::Empty));
+    }
+
+    #[test]
+    fn get_mut_unchecked() {
+        let cells = vec![Tile::Empty; 6];
+        let mut grid = GridBuf::from_row_major(3, 2, cells).unwrap();
+
+        unsafe {
+            assert_eq!(grid.get_mut_unchecked(0, 0), &mut Tile::Empty);
+            *grid.get_mut_unchecked(0, 0) = Tile::Wall;
+        }
+
+        assert_eq!(grid.get(Pos::new(0, 0)), Some(&Tile::Wall));
     }
 }
