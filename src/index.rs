@@ -67,7 +67,7 @@ pub trait Layout: Sized + crate::internal::Sealed {
     fn iter_pos<T: Int>(bounds: &Rect<T>) -> IterPos<T, Self> {
         IterPos {
             bounds,
-            current: Pos::new(T::ZERO, T::ZERO),
+            current: bounds.top_left(),
             layout: PhantomData,
         }
     }
@@ -95,7 +95,7 @@ where
         self.current.x += T::ONE;
 
         if self.current.x >= self.bounds.right() {
-            self.current.x = T::ZERO;
+            self.current.x = self.bounds.left();
             self.current.y += T::ONE;
         }
 
@@ -118,7 +118,7 @@ where
         self.current.y += T::ONE;
 
         if self.current.y >= self.bounds.bottom() {
-            self.current.y = T::ZERO;
+            self.current.y = self.bounds.top();
             self.current.x += T::ONE;
         }
 
