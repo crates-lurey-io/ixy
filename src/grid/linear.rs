@@ -2,7 +2,10 @@ use core::marker::PhantomData;
 
 use crate::{
     HasSize, Pos, Size,
-    grid::{GridError, GridRead, GridReadUnchecked, GridWrite, GridWriteUnchecked, impls},
+    grid::{
+        GridError, GridRead, GridReadMut, GridReadMutUnchecked, GridReadUnchecked, GridWrite,
+        GridWriteUnchecked, impls,
+    },
     index::{ColMajor, Layout, RowMajor},
 };
 
@@ -177,6 +180,34 @@ where
 
     fn get(&self, pos: impl crate::TryIntoPos<usize>) -> Option<&<Self as GridRead>::Element> {
         unsafe { impls::get_from_unchecked(self, pos) }
+    }
+}
+
+impl<E, T, L> GridReadMutUnchecked for GridBuf<E, T, L>
+where
+    T: AsMut<[E]>,
+    L: Layout,
+{
+    type Element = E;
+
+    unsafe fn get_mut_unchecked(&mut self, x: usize, y: usize) -> &mut Self::Element {
+        let index = L::to_1d(Pos::new(x, y), self.width);
+        unsafe { self.data.as_mut().get_unchecked_mut(index.index) }
+    }
+}
+
+impl<E, T, L> GridReadMut for GridBuf<E, T, L>
+where
+    T: AsMut<[E]>,
+    L: Layout,
+{
+    type Element = E;
+
+    fn get_mut(
+        &mut self,
+        pos: impl crate::TryIntoPos<usize>,
+    ) -> Option<&mut <Self as GridReadMut>::Element> {
+        unsafe { impls::get_mut_from_unchecked(self, pos) }
     }
 }
 

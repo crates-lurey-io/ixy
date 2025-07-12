@@ -148,6 +148,32 @@ pub trait GridRead {
     }
 }
 
+/// A grid-like structure that allows unchecked mutable references to its elements.
+pub trait GridReadMutUnchecked {
+    /// The type of the elements in the grid.
+    type Element;
+
+    /// Returns a mutable reference to the element at the given `x` and `y` coordinates.
+    ///
+    /// If the coordinates are out of bounds, the behavior is undefined.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that `x` and `y` are within the bounds of the grid.
+    unsafe fn get_mut_unchecked(&mut self, x: usize, y: usize) -> &mut Self::Element;
+}
+
+/// A grid-like structure that allows mutable references to its elements.
+pub trait GridReadMut {
+    /// The type of the elements in the grid.
+    type Element;
+
+    /// Returns a mutable reference to the element at the given position.
+    ///
+    /// Returns `None` if the position is out of bounds.
+    fn get_mut(&mut self, pos: impl TryIntoPos<usize>) -> Option<&mut Self::Element>;
+}
+
 /// A grid-like structure that allows unchecked mutable access to its elements.
 pub trait GridWriteUnchecked {
     /// The type of the elements in the grid.

@@ -2,10 +2,8 @@
 
 use crate::{
     HasSize, TryIntoPos,
-    grid::{GridReadUnchecked, GridWriteUnchecked},
+    grid::{GridReadMutUnchecked, GridReadUnchecked, GridWriteUnchecked},
 };
-
-
 
 /// Implementation of [`GridRead::get`](crate::grid::GridRead::get) for a [`GridReadUnchecked`].
 ///
@@ -40,6 +38,41 @@ pub unsafe fn get_from_unchecked_with_size<E>(
         return None;
     }
     unsafe { Some(grid.get_unchecked(pos.x, pos.y)) }
+}
+
+/// Implementation of [`GridReadMut::get_mut`](crate::grid::GridReadMut::get_mut) for a [`GridReadMutUnchecked`].
+///
+/// The size of the grid is referenced from the grid itself.
+///
+/// # Safety
+///
+/// This function assumes that [`HasSize::size`] contains valid dimensions for the grid.
+pub unsafe fn get_mut_from_unchecked<E>(
+    grid: &mut (impl GridReadMutUnchecked<Element = E> + HasSize<Dim = usize>),
+    pos: impl TryIntoPos<usize>,
+) -> Option<&mut E> {
+    let size = grid.size();
+    unsafe { get_mut_from_unchecked_with_size(grid, pos, size) }
+}
+
+/// Implementation of [`GridReadMut::get_mut`](crate::grid::GridReadMut::get_mut) for a [`GridReadMutUnchecked`].
+///
+/// The size of the grid is provided as an argument.
+///
+/// # Safety
+///
+/// This function assumes that the `size` contains valid dimensions for the grid.
+#[allow(clippy::needless_pass_by_value)]
+pub unsafe fn get_mut_from_unchecked_with_size<E>(
+    grid: &mut impl GridReadMutUnchecked<Element = E>,
+    pos: impl TryIntoPos<usize>,
+    size: impl HasSize<Dim = usize>,
+) -> Option<&mut E> {
+    let pos = pos.try_into_pos().ok()?;
+    if pos.x >= size.width() || pos.y >= size.height() {
+        return None;
+    }
+    unsafe { Some(grid.get_mut_unchecked(pos.x, pos.y)) }
 }
 
 /// Implementation of [`GridWrite::set`](crate::grid::GridWrite::set) for a [`GridWriteUnchecked`].

@@ -9,7 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `grid::impls::get_mut_from*` for mutable references to elements in a grid
 - `grid::iter::*`, for accessing elements lazily in an iterable fashion
+- `GridRead[Unchecked]::iter_*`, for reading a block of elements lazily
+- `GridReadMut[Unchecked]` for mutable references, implemented for `GridBuf`
 - `Layout::iter_pos`, for yielding positions lazily in an iterable fasion
 - `Rect::contains[_{pos|rect}]`, `Rect::iter_pos_{row|col}`
 
