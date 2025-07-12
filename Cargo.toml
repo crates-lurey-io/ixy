@@ -5,7 +5,7 @@ license = "MIT"
 
 description = "A minimal, no-std compatible crate for 2D integer geometry"
 repository = "https://github.com/crates-lurey-io/ixy"
-version = "0.1.0"
+version = "0.2.0"
 
 [lints.clippy]
 pedantic = "deny"
@@ -18,9 +18,5 @@ cargo-nextest = { version = "0.9.98", locked = true }
 cargo-llvm-cov = { version = "0.6.16", locked = true }
 just = { version = "1.40.0" }
 taplo-cli = { version = "0.10.0", bins = ["taplo"] }
-
-[features]
-default = ["alloc"]
-alloc = []
 
 [dependencies]
