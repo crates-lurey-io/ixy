@@ -27,7 +27,7 @@
 
 use core::marker::PhantomData;
 
-use crate::{Pos, int::Int};
+use crate::{Pos, Rect, int::Int};
 
 /// A linear memory index that can be used to access elements in a 2-dimensional array.
 #[repr(transparent)]
@@ -62,6 +62,68 @@ pub trait Layout: Sized + crate::internal::Sealed {
 
     /// Converts a linear memory index to a 2-dimensional position.
     fn to_2d<T: Int>(index: Index<T, Self>, width: usize) -> Pos<T>;
+
+    /// Creates an iterator of the given bounds, yielding positions in the order defined.
+    fn iter_pos<T: Int>(bounds: &Rect<T>) -> IterPos<T, Self> {
+        IterPos {
+            bounds,
+            current: bounds.top_left(),
+            layout: PhantomData,
+        }
+    }
+}
+
+/// An iterator over a 2-dimensional bounding rectangle, yielding positions.
+pub struct IterPos<'a, T: Int, L: Layout> {
+    bounds: &'a Rect<T>,
+    current: Pos<T>,
+    layout: PhantomData<L>,
+}
+
+impl<T> Iterator for IterPos<'_, T, RowMajor>
+where
+    T: Int,
+{
+    type Item = Pos<T>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current.y >= self.bounds.bottom() {
+            return None;
+        }
+
+        let pos = self.current;
+        self.current.x += T::ONE;
+
+        if self.current.x >= self.bounds.right() {
+            self.current.x = self.bounds.left();
+            self.current.y += T::ONE;
+        }
+
+        Some(pos)
+    }
+}
+
+impl<T> Iterator for IterPos<'_, T, ColMajor>
+where
+    T: Int,
+{
+    type Item = Pos<T>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current.x >= self.bounds.right() {
+            return None;
+        }
+
+        let pos = self.current;
+        self.current.y += T::ONE;
+
+        if self.current.y >= self.bounds.bottom() {
+            self.current.y = self.bounds.top();
+            self.current.x += T::ONE;
+        }
+
+        Some(pos)
+    }
 }
 
 /// Each row is stored contiguously in memory, with the first row at the lowest address.
@@ -108,7 +170,12 @@ impl Layout for ColMajor {
 
 #[cfg(test)]
 mod tests {
+    extern crate alloc;
+
+    use crate::pos;
+
     use super::*;
+    use alloc::vec::Vec;
 
     #[test]
     fn to_row_major() {
@@ -146,5 +213,39 @@ mod tests {
         let pos = ColMajor::to_2d(index, width);
         assert_eq!(pos.x, 2); // 13 / 5
         assert_eq!(pos.y, 3); // 13 % 5
+    }
+
+    #[test]
+    fn iter_row_major() {
+        let bounds = Rect::from_ltrb(0, 0, 3, 2).unwrap();
+        let positions: Vec<_> = RowMajor::iter_pos(&bounds).collect();
+        assert_eq!(
+            positions,
+            &[
+                pos!(0, 0),
+                pos!(1, 0),
+                pos!(2, 0),
+                pos!(0, 1),
+                pos!(1, 1),
+                pos!(2, 1)
+            ]
+        );
+    }
+
+    #[test]
+    fn iter_col_major() {
+        let bounds = Rect::from_ltrb(0, 0, 3, 2).unwrap();
+        let positions: Vec<_> = ColMajor::iter_pos(&bounds).collect();
+        assert_eq!(
+            positions,
+            &[
+                pos!(0, 0),
+                pos!(0, 1),
+                pos!(1, 0),
+                pos!(1, 1),
+                pos!(2, 0),
+                pos!(2, 1)
+            ]
+        );
     }
 }
