@@ -1,5 +1,6 @@
 use crate::{
     HasSize, Pos,
+    index::{ColMajor, Layout, RowMajor},
     int::{Int, UnsignedInt},
 };
 
@@ -295,6 +296,90 @@ impl<T: Int> Rect<T> {
     pub fn area(&self) -> T {
         self.width() * self.height()
     }
+
+    /// Returns `true` if the rectangle contains the given `x` and `y` coordinates.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use ixy::{Rect, Pos};
+    ///
+    /// let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
+    /// assert!(rect.contains(2, 3));
+    /// assert!(!rect.contains(0, 0));
+    /// ```
+    pub fn contains(&self, x: T, y: T) -> bool {
+        x >= self.l && x < self.r && y >= self.t && y < self.b
+    }
+
+    /// Returns `true` if the rectangle contains the given position.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use ixy::{Rect, Pos};
+    ///
+    /// let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
+    /// assert!(rect.contains_pos(Pos::new(2, 3)));
+    /// assert!(!rect.contains_pos(Pos::new(0, 0)));
+    /// ```
+    pub fn contains_pos(&self, pos: Pos<T>) -> bool {
+        self.contains(pos.x, pos.y)
+    }
+
+    /// Returns `true` if the rectangle contains the given rectangle.
+    ///
+    /// If any edge of the given rectangle is outside this rectangle, it returns `false`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use ixy::{Rect, Pos};
+    ///
+    /// let rect = Rect::from_ltrb(1, 2, 5, 6).unwrap();
+    /// assert!(rect.contains_rect(Rect::from_ltrb(2, 3, 4, 5).unwrap()));
+    ///
+    /// assert!(!rect.contains_rect(Rect::from_ltrb(0, 3, 4, 5).unwrap()));
+    /// assert!(!rect.contains_rect(Rect::from_ltrb(2, 3, 6, 5).unwrap()));
+    /// assert!(!rect.contains_rect(Rect::from_ltrb(2, 3, 4, 7).unwrap()));
+    /// ```
+    pub fn contains_rect(&self, other: Rect<T>) -> bool {
+        self.contains(other.l, other.t) && self.contains(other.r, other.b)
+    }
+
+    /// Returns an iterator over the positions within the rectangle, in row-major order.
+    ///
+    /// The positions are exclusive of the bottom-right edge.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use ixy::{Rect, Pos};
+    ///
+    /// let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
+    /// let positions: Vec<Pos<i32>> = rect.iter_pos().collect();
+    /// assert_eq!(positions, &[Pos::new(1, 2), Pos::new(2, 2), Pos::new(1, 3), Pos::new(2, 3)]);
+    /// ```
+    pub fn iter_pos_row_major(&self) -> impl Iterator<Item = Pos<T>> {
+        RowMajor::iter_pos(self)
+    }
+
+    /// Returns an iterator over the positions within the rectangle, in column-major order.
+    ///
+    /// The positions are exclusive of the bottom-right edge.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use ixy::{Rect, Pos};
+    ///
+    /// let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
+    /// let positions: Vec<Pos<i32>> = rect.iter_pos_col_major().collect();
+    /// assert_eq!(positions, &[Pos::new(1, 2), Pos::new(1, 3), Pos::new(2, 2), Pos::new(2, 3)]);
+    /// ```
+    pub fn iter_pos_col_major(&self) -> impl Iterator<Item = Pos<T>> {
+        ColMajor::iter_pos(self)
+    }
 }
 
 impl<T: Int> HasSize for Rect<T> {
@@ -336,7 +421,10 @@ impl<T: UnsignedInt> Rect<T> {
 
 #[cfg(test)]
 mod tests {
+    extern crate alloc;
+
     use super::*;
+    use alloc::vec::Vec;
 
     #[test]
     fn rect_macro_ltrb() {
@@ -489,6 +577,100 @@ mod tests {
                 width: 2,
                 height: 2
             }
+        );
+    }
+
+    #[test]
+    fn contains_pos_true() {
+        let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
+        assert!(rect.contains_pos(Pos::new(2, 3)));
+    }
+
+    #[test]
+    fn contains_pos_false_x_before_left() {
+        let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
+        assert!(!rect.contains_pos(Pos::new(0, 3)));
+    }
+
+    #[test]
+    fn contains_pos_false_x_after_right() {
+        let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
+        assert!(!rect.contains_pos(Pos::new(4, 3)));
+    }
+
+    #[test]
+    fn contains_pos_false_y_before_top() {
+        let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
+        assert!(!rect.contains_pos(Pos::new(2, 1)));
+    }
+
+    #[test]
+    fn contains_pos_false_y_after_bottom() {
+        let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
+        assert!(!rect.contains_pos(Pos::new(2, 5)));
+    }
+
+    #[test]
+    fn contains_rect_true() {
+        let rect = Rect::from_ltrb(1, 2, 5, 6).unwrap();
+        assert!(rect.contains_rect(Rect::from_ltrb(2, 3, 4, 5).unwrap()));
+    }
+
+    #[test]
+    fn contains_rect_false_left_edge() {
+        let rect = Rect::from_ltrb(1, 2, 5, 6).unwrap();
+        assert!(!rect.contains_rect(Rect::from_ltrb(0, 3, 4, 5).unwrap()));
+    }
+
+    #[test]
+    fn contains_rect_false_right_edge() {
+        let rect = Rect::from_ltrb(1, 2, 5, 6).unwrap();
+        assert!(!rect.contains_rect(Rect::from_ltrb(2, 3, 6, 5).unwrap()));
+    }
+
+    #[test]
+    fn contains_rect_false_top_edge() {
+        let rect = Rect::from_ltrb(1, 2, 5, 6).unwrap();
+        assert!(!rect.contains_rect(Rect::from_ltrb(2, 1, 4, 5).unwrap()));
+    }
+
+    #[test]
+    fn contains_rect_false_bottom_edge() {
+        let rect = Rect::from_ltrb(1, 2, 5, 6).unwrap();
+        assert!(!rect.contains_rect(Rect::from_ltrb(2, 3, 4, 7).unwrap()));
+    }
+
+    #[test]
+    fn iter_pos_row_major() {
+        let rect = Rect::from_ltrb(0, 0, 3, 2).unwrap();
+        let positions: Vec<_> = rect.iter_pos_row_major().collect();
+        assert_eq!(
+            positions,
+            &[
+                Pos::new(0, 0),
+                Pos::new(1, 0),
+                Pos::new(2, 0),
+                Pos::new(0, 1),
+                Pos::new(1, 1),
+                Pos::new(2, 1)
+            ]
+        );
+    }
+
+    #[test]
+    fn iter_pos_col_major() {
+        let rect = Rect::from_ltrb(0, 0, 3, 2).unwrap();
+        let positions: Vec<_> = rect.iter_pos_col_major().collect();
+        assert_eq!(
+            positions,
+            &[
+                Pos::new(0, 0),
+                Pos::new(0, 1),
+                Pos::new(1, 0),
+                Pos::new(1, 1),
+                Pos::new(2, 0),
+                Pos::new(2, 1)
+            ]
         );
     }
 }

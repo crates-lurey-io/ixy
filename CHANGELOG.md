@@ -7,9 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `grid::iter::*`, for accessing elements lazily in an iterable fashion
+- `Layout::iter_pos`, for yielding positions lazily in an iterable fasion
+- `Rect::contains[_{pos|rect}]`, `Rect::iter_pos_{row|col}`
+
 ### Changed
 
-- `GridReadExt` and `GridWriteExt` now require a `Rect<usize>` instead of `impl Into<Rect<usize>>`.
+- Renamed `Grid*Ext` to `GridSubView*`, changed the API to match `GridView::*`
+- `GridSubView*` now require a `Rect<usize>` instead of `impl Into<Rect<usize>>`
 
 ## [0.1.0] - 2025-07-10
 

@@ -34,11 +34,14 @@
 //! grid.set(Pos::new(0, 0), Tile::Wall);
 //! assert_eq!(grid.get(Pos::new(0, 0)), Some(&Tile::Wall));
 //! ```
+
+pub mod iter;
+
 mod linear;
 pub use linear::GridBuf;
 
 mod view;
-pub use view::{GridView, GridViewMut};
+pub use view::{GridSubView, GridSubViewMut, GridView, GridViewMut};
 
 pub mod impls;
 
@@ -64,6 +67,7 @@ pub trait GridReadUnchecked {
     ///
     /// The caller must ensure that `x` and `y` are within the bounds of the grid.
     unsafe fn get_unchecked(&self, x: usize, y: usize) -> &Self::Element;
+
 }
 
 /// A grid-like structure that can be read from using 2D coordinates.

@@ -53,6 +53,12 @@ impl<T, G: Deref<Target = T>, E> GridView<T, G, E> {
 
     /// Creates a new `GridView` with the specified sub-bounds defined by `rect`.
     ///
+    /// Methods to the grid are delegated to the underlying grid, with the following adjustments:
+    /// - The `x` coordinate is offset by the left edge of the `rect`;
+    /// - The `y` coordinate is offset by the top edge of the `rect`;
+    /// - The maximum `x` coordinate is adjusted to the right edge of the `rect`;
+    /// - The maximum `y` coordinate is adjusted to the bottom edge of the `rect`.
+    ///
     /// # Errors
     ///
     /// If the `rect` is out of bounds of the grid, an error is returned.
@@ -255,6 +261,91 @@ where
             return;
         };
         self.grid.set(pos + self.rect.top_left(), value);
+    }
+}
+
+/// Extensions on a grid that provide methods for creating sub-views.
+pub trait GridSubView {
+    /// The element type of the grid.
+    type Element;
+
+    /// Returns a sub-grid view of the grid, defined by the given rectangle.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that the `rect` is within the bounds of the grid.
+    unsafe fn view_unchecked(&self, rect: Rect<usize>) -> GridView<Self, &Self, Self::Element>
+    where
+        Self: Sized,
+    {
+        unsafe { GridView::new_unchecked(self, rect) }
+    }
+
+    /// Returns a sub-grid view of the grid, defined by the given rectangle.
+    ///
+    /// # Errors
+    ///
+    /// If the `rect` is out of bounds of the grid, an error is returned.
+    fn view(&self, rect: Rect<usize>) -> Result<GridView<Self, &Self, Self::Element>, GridError>
+    where
+        Self: Sized;
+}
+
+impl<T: GridRead + HasSize<Dim = usize>> GridSubView for T {
+    type Element = <T as GridRead>::Element;
+
+    fn view(&self, rect: Rect<usize>) -> Result<GridView<Self, &Self, Self::Element>, GridError>
+    where
+        Self: Sized,
+    {
+        GridView::new(self, rect)
+    }
+}
+
+/// Extensions on a grid that provide methods for creating mutable sub-views.
+pub trait GridSubViewMut {
+    /// The element type of the grid.
+    type Element;
+
+    /// Returns a mutable sub-grid view of the grid, defined by the given rectangle.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that the `rect` is within the bounds of the grid.
+    unsafe fn view_mut_unchecked(
+        &mut self,
+        rect: Rect<usize>,
+    ) -> GridViewMut<Self, &mut Self, Self::Element>
+    where
+        Self: Sized,
+    {
+        unsafe { GridViewMut::new_unchecked(self, rect) }
+    }
+
+    /// Returns a mutable sub-grid view of the grid, defined by the given rectangle.
+    ///
+    /// # Errors
+    ///
+    /// If the `rect` is out of bounds of the grid, an error is returned.
+    fn view_mut(
+        &mut self,
+        rect: Rect<usize>,
+    ) -> Result<GridViewMut<Self, &mut Self, Self::Element>, GridError>
+    where
+        Self: Sized;
+}
+
+impl<T: GridWrite + HasSize<Dim = usize>> GridSubViewMut for T {
+    type Element = <T as GridWrite>::Element;
+
+    fn view_mut(
+        &mut self,
+        rect: Rect<usize>,
+    ) -> Result<GridViewMut<Self, &mut Self, Self::Element>, GridError>
+    where
+        Self: Sized,
+    {
+        GridViewMut::new(self, rect)
     }
 }
 
