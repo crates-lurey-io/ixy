@@ -2,8 +2,6 @@
 
 #![no_std]
 
-pub mod grid;
-
 pub mod index;
 pub use index::Index;
 
