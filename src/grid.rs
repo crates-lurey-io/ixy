@@ -68,6 +68,47 @@ pub trait GridReadUnchecked {
     /// The caller must ensure that `x` and `y` are within the bounds of the grid.
     unsafe fn get_unchecked(&self, x: usize, y: usize) -> &Self::Element;
 
+    /// Returns an iterator over the elements in the grid, defined by the given rectangle.
+    ///
+    /// The positions are yielded in row-major order.
+    ///
+    /// # Implementation Details
+    ///
+    /// The default implementation calls [`GridReadUnchecked::get_unchecked`] for each position in
+    /// the rectangle.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that the positions yielded by the iterator are valid for the grid.
+    unsafe fn iter_rect_row_major_unchecked(
+        &self,
+        bounds: &Rect<usize>,
+    ) -> impl Iterator<Item = &Self::Element> {
+        bounds
+            .iter_pos_row_major()
+            .map(move |pos| unsafe { self.get_unchecked(pos.x, pos.y) })
+    }
+
+    /// Returns an iterator over the elements in the grid, defined by the given rectangle.
+    ///
+    /// The positions are yielded in column-major order.
+    ///
+    /// # Implementation Details
+    ///
+    /// The default implementation calls [`GridReadUnchecked::get_unchecked`] for each position in
+    /// the rectangle.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that the positions yielded by the iterator are valid for the grid.
+    unsafe fn iter_rect_col_major_unchecked(
+        &self,
+        bounds: &Rect<usize>,
+    ) -> impl Iterator<Item = &Self::Element> {
+        bounds
+            .iter_pos_col_major()
+            .map(move |pos| unsafe { self.get_unchecked(pos.x, pos.y) })
+    }
 }
 
 /// A grid-like structure that can be read from using 2D coordinates.
@@ -78,7 +119,33 @@ pub trait GridRead {
     /// Returns a reference to the element at the given position.
     ///
     /// Returns `None` if the position is out of bounds.
-    fn get(&self, pos: impl TryIntoPos<usize>) -> Option<&<Self as GridRead>::Element>;
+    fn get(&self, pos: impl TryIntoPos<usize>) -> Option<&Self::Element>;
+
+    /// Returns an iterator over the elements in the grid, defined by the given rectangle.
+    ///
+    /// The positions are yielded in row-major order.
+    ///
+    /// # Implementation Details
+    ///
+    /// The default implementation calls [`GridRead::get`] for each position in the rectangle.
+    fn iter_rect_row_major(&self, bounds: &Rect<usize>) -> impl Iterator<Item = &Self::Element> {
+        bounds
+            .iter_pos_row_major()
+            .filter_map(move |pos| self.get(pos))
+    }
+
+    /// Returns an iterator over the elements in the grid, defined by the given rectangle.
+    ///
+    /// The positions are yielded in column-major order.
+    ///
+    /// # Implementation Details
+    ///
+    /// The default implementation calls [`GridRead::get`] for each position in the rectangle.
+    fn iter_rect_col_major(&self, bounds: &Rect<usize>) -> impl Iterator<Item = &Self::Element> {
+        bounds
+            .iter_pos_col_major()
+            .filter_map(move |pos| self.get(pos))
+    }
 }
 
 /// A grid-like structure that allows unchecked mutable access to its elements.
@@ -348,5 +415,51 @@ mod tests {
         assert_eq!(grid.get(Pos::new(1, 0)), Some(&20));
         assert_eq!(grid.get(Pos::new(2, 1)), Some(&30));
         assert_eq!(grid.get(Pos::new(1, 1)), Some(&0));
+    }
+
+    #[test]
+    fn grid_read_iter_row_major() {
+        let grid = TestGrid {
+            data: vec![1, 2, 3, 4, 5, 6],
+            width: 3,
+        };
+
+        let bounds = Rect::from_ltrb(0, 0, 3, 2).unwrap();
+        let elements: Vec<_> = grid.iter_rect_row_major(&bounds).collect();
+        assert_eq!(elements, &[&1, &2, &3, &4, &5, &6]);
+    }
+
+    #[test]
+    fn grid_read_iter_col_major() {
+        let grid = TestGrid {
+            data: vec![1, 2, 3, 4, 5, 6],
+            width: 3,
+        };
+        let bounds = Rect::from_ltrb(0, 0, 3, 2).unwrap();
+        let elements: Vec<_> = grid.iter_rect_col_major(&bounds).collect();
+        assert_eq!(elements, &[&1, &4, &2, &5, &3, &6]);
+    }
+
+    #[test]
+    fn grid_read_iter_row_major_unchecked() {
+        let grid = TestGridUncheckedAndSize {
+            data: vec![1, 2, 3, 4, 5, 6],
+            width: 3,
+        };
+
+        let bounds = Rect::from_ltrb(0, 0, 3, 2).unwrap();
+        let elements: Vec<_> = unsafe { grid.iter_rect_row_major_unchecked(&bounds).collect() };
+        assert_eq!(elements, &[&1, &2, &3, &4, &5, &6]);
+    }
+
+    #[test]
+    fn grid_read_iter_col_major_unchecked() {
+        let grid = TestGridUncheckedAndSize {
+            data: vec![1, 2, 3, 4, 5, 6],
+            width: 3,
+        };
+        let bounds = Rect::from_ltrb(0, 0, 3, 2).unwrap();
+        let elements: Vec<_> = unsafe { grid.iter_rect_col_major_unchecked(&bounds).collect() };
+        assert_eq!(elements, &[&1, &4, &2, &5, &3, &6]);
     }
 }
