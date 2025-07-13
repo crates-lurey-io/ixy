@@ -17,7 +17,7 @@ macro_rules! pos {
 ///
 /// The type parameter `T` is guaranteed to be a built-in Rust integer type, and defaults to `i32`.
 ///
-/// # Layout
+/// ## Layout
 ///
 /// The layout of `Pos<T>` is guaranteed to be the same as a C struct with two fields, `x` and `y`,
 /// both of type `T`.
@@ -31,7 +31,7 @@ macro_rules! pos {
 /// }
 /// ```
 ///
-/// # Ordering
+/// ## Ordering
 ///
 /// Points are ordered _lexographically_, or the point with the smaller `x` coordinate comes first.
 ///
@@ -44,7 +44,7 @@ macro_rules! pos {
 /// assert!(Pos::new(2, 2) > Pos::new(1, 2));
 /// ```
 ///
-/// # Examples
+/// ## Examples
 ///
 /// Create a point, also known as a position, at `(3, 4)`:
 ///
@@ -110,7 +110,7 @@ impl<T: Int> Pos<T> {
     ///      ↓
     /// ```
     ///
-    /// # Examples
+    /// ## Examples
     ///
     /// ```rust
     /// use ixy::Pos;
@@ -145,7 +145,7 @@ impl<T: Int> Pos<T> {
     ///      ↓
     /// ```
     ///
-    /// # Examples
+    /// ## Examples
     ///
     /// ```rust
     /// use ixy::Pos;
@@ -170,7 +170,7 @@ impl<T: Int> Pos<T> {
     /// y           P
     /// ```
     ///
-    /// # Examples
+    /// ## Examples
     ///
     /// ```rust
     /// use ixy::Pos;
@@ -187,7 +187,7 @@ impl<T: Int> Pos<T> {
     ///
     /// Useful in combination with [`ops::Mul`] or [`ops::MulAssign`] to scale the vector.
     ///
-    /// # Examples
+    /// ## Examples
     ///
     /// ```rust
     /// use ixy::Pos;
@@ -208,7 +208,7 @@ impl<T: Int> Pos<T> {
     ///
     /// Useful in combination with [`ops::Mul`] or [`ops::MulAssign`] to scale the vector.
     ///
-    /// # Examples
+    /// ## Examples
     ///
     /// ```rust
     /// use ixy::Pos;
@@ -229,7 +229,7 @@ impl<T: Int> Pos<T> {
     ///
     /// An alternative to using the `Pos { x, y }` syntax.
     ///
-    /// # Examples
+    /// ## Examples
     ///
     /// ```rust
     /// use ixy::Pos;
@@ -249,7 +249,7 @@ impl<T: SignedInt> Pos<T> {
     ///
     /// Useful in combination with [`ops::Mul`] or [`ops::MulAssign`] to scale the vector.
     ///
-    /// # Examples
+    /// ## Examples
     ///
     /// ```rust
     /// use ixy::Pos;
@@ -272,7 +272,7 @@ impl<T: SignedInt> Pos<T> {
     ///
     /// Useful in combination with [`ops::Mul`] or [`ops::MulAssign`] to scale the vector.
     ///
-    /// # Examples
+    /// ## Examples
     ///
     /// ```rust
     /// use ixy::Pos;
@@ -371,7 +371,7 @@ impl<T: Int> From<Pos<T>> for [T; 2] {
 pub trait TryFromPos<T: Int>: Sized {
     /// Returns the type that the `Pos<T>` can be converted to.
     ///
-    /// # Errors
+    /// ## Errors
     ///
     /// If the conversion fails, returns a `TryFromPosError`.
     fn try_from_pos(value: Pos<T>) -> Result<Self, TryFromPosError>;
@@ -381,7 +381,7 @@ pub trait TryFromPos<T: Int>: Sized {
 pub trait TryIntoPos<T: Int>: Sized {
     /// Returns the type that the `Pos<T>` can be converted to.
     ///
-    /// # Errors
+    /// ## Errors
     ///
     /// If the conversion fails, returns a `TryFromPosError`.
     fn try_into_pos(self) -> Result<Pos<T>, TryFromPosError>;

@@ -10,7 +10,7 @@ use crate::{
 /// that the coordinates form a valid rectangle, by re-arranging them if necessary; i.e. swapping
 /// either the left and right coordinates, or the top and bottom coordinates.
 ///
-/// # Examples
+/// ## Examples
 ///
 /// ```rust
 /// use ixy::{rect, Pos};
@@ -42,7 +42,7 @@ macro_rules! rect {
 ///
 /// The type parameter `T` is guaranteed to be a built-in Rust integer type, and defaults to `i32`.
 ///
-/// # Layout
+/// ## Layout
 ///
 /// Each `Rect<T>` is defined by two points, the top-left and bottom-right corners.
 ///
@@ -82,11 +82,11 @@ impl<T: Int> Rect<T> {
 
     /// Creates a new rectangle from the top-left and bottom-right corners.
     ///
-    /// # Errors
+    /// ## Errors
     ///
     /// Returns an error if the top-left corner is not less than the bottom-right corner.
     ///
-    /// # Examples
+    /// ## Examples
     ///
     /// ```rust
     /// use ixy::{Pos, Rect};
@@ -112,11 +112,11 @@ impl<T: Int> Rect<T> {
 
     /// Creates a new rectangle from the `l`eft, `t`op, `r`ight, and `b`ottom coordinates.
     ///
-    /// # Errors
+    /// ## Errors
     ///
     /// Returns an error if the provided coordinates do not form a valid rectangle.
     ///
-    /// # Examples
+    /// ## Examples
     ///
     /// ```rust
     /// use ixy::Rect;
@@ -137,7 +137,7 @@ impl<T: Int> Rect<T> {
 
     /// Creates a new rectangle from the `l`eft, `t`op, `r`ight, and `b`ottom coordinates.
     ///
-    /// # Safety
+    /// ## Safety
     ///
     /// This method does not check if the coordinates form a valid rectangle.
     pub const unsafe fn from_ltrb_unchecked(l: T, t: T, r: T, b: T) -> Self {
@@ -146,11 +146,11 @@ impl<T: Int> Rect<T> {
 
     /// Creates a new rectangle from the `l`eft and `t`op coordinates, and `w`idth and `h`eight.
     ///
-    /// # Errors
+    /// ## Errors
     ///
     /// Returns an error if either the width or height is negative.
     ///
-    /// # Examples
+    /// ## Examples
     ///
     /// ```rust
     /// use ixy::Rect;
@@ -196,7 +196,7 @@ impl<T: Int> Rect<T> {
 
     /// Returns the top-left corner of the rectangle as a [`Pos<T>`].
     ///
-    /// # Examples
+    /// ## Examples
     ///
     /// ```rust
     /// use ixy::{Rect, Pos};
@@ -210,7 +210,7 @@ impl<T: Int> Rect<T> {
 
     /// Returns the top-right corner of the rectangle as a [`Pos<T>`].
     ///
-    /// # Examples
+    /// ## Examples
     ///
     /// ```rust
     /// use ixy::{Rect, Pos};
@@ -224,7 +224,7 @@ impl<T: Int> Rect<T> {
 
     /// Returns the bottom-right corner of the rectangle as a [`Pos<T>`].
     ///
-    /// # Examples
+    /// ## Examples
     ///
     /// ```rust
     /// use ixy::{Rect, Pos};
@@ -238,7 +238,7 @@ impl<T: Int> Rect<T> {
 
     /// Returns the bottom-left corner of the rectangle as a [`Pos<T>`].
     ///
-    /// # Examples
+    /// ## Examples
     ///
     /// ```rust
     /// use ixy::{Rect, Pos};
@@ -252,7 +252,7 @@ impl<T: Int> Rect<T> {
 
     /// Returns the width of the rectangle, which is the distance between the left and right edges.
     ///
-    /// # Examples
+    /// ## Examples
     ///
     /// ```rust
     /// use ixy::Rect;
@@ -266,7 +266,7 @@ impl<T: Int> Rect<T> {
 
     /// Returns the height of the rectangle, which is the distance between the top and bottom edges.
     ///
-    /// # Examples
+    /// ## Examples
     ///
     /// ```rust
     /// use ixy::Rect;
@@ -285,7 +285,7 @@ impl<T: Int> Rect<T> {
 
     /// Returns the area of the rectangle, which is the product of its width and height.
     ///
-    /// # Examples
+    /// ## Examples
     ///
     /// ```rust
     /// use ixy::Rect;
@@ -299,7 +299,7 @@ impl<T: Int> Rect<T> {
 
     /// Returns `true` if the rectangle contains the given `x` and `y` coordinates.
     ///
-    /// # Examples
+    /// ## Examples
     ///
     /// ```rust
     /// use ixy::{Rect, Pos};
@@ -314,7 +314,7 @@ impl<T: Int> Rect<T> {
 
     /// Returns `true` if the rectangle contains the given position.
     ///
-    /// # Examples
+    /// ## Examples
     ///
     /// ```rust
     /// use ixy::{Rect, Pos};
@@ -331,7 +331,7 @@ impl<T: Int> Rect<T> {
     ///
     /// If any edge of the given rectangle is outside this rectangle, it returns `false`.
     ///
-    /// # Examples
+    /// ## Examples
     ///
     /// ```rust
     /// use ixy::{Rect, Pos};
@@ -351,7 +351,7 @@ impl<T: Int> Rect<T> {
     ///
     /// The positions are exclusive of the bottom-right edge.
     ///
-    /// # Examples
+    /// ## Examples
     ///
     /// ```rust
     /// use ixy::{Rect, Pos};
@@ -368,7 +368,7 @@ impl<T: Int> Rect<T> {
     ///
     /// The positions are exclusive of the bottom-right edge.
     ///
-    /// # Examples
+    /// ## Examples
     ///
     /// ```rust
     /// use ixy::{Rect, Pos};
@@ -398,7 +398,7 @@ impl<T: UnsignedInt> Rect<T> {
     ///
     /// Unlike [`Rect::from_ltwh`], this method is infallible as `T` is always non-negative.
     ///
-    /// # Examples
+    /// ## Examples
     ///
     /// ```rust
     /// use ixy::Rect;
