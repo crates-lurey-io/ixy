@@ -64,13 +64,7 @@ pub trait Layout: Sized + crate::internal::Sealed {
     fn to_2d<T: Int>(index: Index<T, Self>, width: usize) -> Pos<T>;
 
     /// Creates an iterator of the given bounds, yielding positions in the order defined.
-    fn iter_pos<T: Int>(bounds: Rect<T>) -> IterPos<T, Self> {
-        IterPos {
-            bounds,
-            current: bounds.top_left(),
-            layout: PhantomData,
-        }
-    }
+    fn iter_pos<T: Int>(bounds: Rect<T>) -> impl Iterator<Item = Pos<T>>;
 }
 
 /// An iterator over a 2-dimensional bounding rectangle, yielding positions.
@@ -143,6 +137,14 @@ impl Layout for RowMajor {
             y: T::from_usize(index.index / width),
         }
     }
+
+    fn iter_pos<T: Int>(bounds: Rect<T>) -> impl Iterator<Item = Pos<T>> {
+        IterPos {
+            bounds,
+            current: Pos::new(bounds.left(), bounds.top()),
+            layout: PhantomData::<Self>,
+        }
+    }
 }
 
 /// Each column is stored contiguously in memory, with the first column at the lowest address.
@@ -164,6 +166,14 @@ impl Layout for ColMajor {
         Pos {
             x: T::from_usize(index.index / width),
             y: T::from_usize(index.index % width),
+        }
+    }
+
+    fn iter_pos<T: Int>(bounds: Rect<T>) -> impl Iterator<Item = Pos<T>> {
+        IterPos {
+            bounds,
+            current: Pos::new(bounds.left(), bounds.top()),
+            layout: PhantomData::<Self>,
         }
     }
 }
