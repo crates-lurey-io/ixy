@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - `Layout::iter_pos` and associated methods take ownership of `Rect`
+- `Rect::iter_pos_*` is now `::into_iter_*`, and consumes `Rect`
 
 ## [0.2.0] - 2025-07-12
 

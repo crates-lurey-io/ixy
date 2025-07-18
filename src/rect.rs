@@ -357,11 +357,11 @@ impl<T: Int> Rect<T> {
     /// use ixy::{Rect, Pos};
     ///
     /// let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
-    /// let positions: Vec<Pos<i32>> = rect.iter_pos_row_major().collect();
+    /// let positions: Vec<Pos<i32>> = rect.into_iter_row_major().collect();
     /// assert_eq!(positions, &[Pos::new(1, 2), Pos::new(2, 2), Pos::new(1, 3), Pos::new(2, 3)]);
     /// ```
-    pub fn iter_pos_row_major(&self) -> impl Iterator<Item = Pos<T>> {
-        RowMajor::iter_pos(*self)
+    pub fn into_iter_row_major(self) -> impl Iterator<Item = Pos<T>> {
+        RowMajor::iter_pos(self)
     }
 
     /// Returns an iterator over the positions within the rectangle, in column-major order.
@@ -374,11 +374,11 @@ impl<T: Int> Rect<T> {
     /// use ixy::{Rect, Pos};
     ///
     /// let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
-    /// let positions: Vec<Pos<i32>> = rect.iter_pos_col_major().collect();
+    /// let positions: Vec<Pos<i32>> = rect.into_iter_col_major().collect();
     /// assert_eq!(positions, &[Pos::new(1, 2), Pos::new(1, 3), Pos::new(2, 2), Pos::new(2, 3)]);
     /// ```
-    pub fn iter_pos_col_major(&self) -> impl Iterator<Item = Pos<T>> {
-        ColMajor::iter_pos(*self)
+    pub fn into_iter_col_major(self) -> impl Iterator<Item = Pos<T>> {
+        ColMajor::iter_pos(self)
     }
 }
 
@@ -643,7 +643,7 @@ mod tests {
     #[test]
     fn iter_pos_row_major() {
         let rect = Rect::from_ltrb(0, 0, 3, 2).unwrap();
-        let positions: Vec<_> = rect.iter_pos_row_major().collect();
+        let positions: Vec<_> = rect.into_iter_row_major().collect();
         assert_eq!(
             positions,
             &[
@@ -660,7 +660,7 @@ mod tests {
     #[test]
     fn iter_pos_col_major() {
         let rect = Rect::from_ltrb(0, 0, 3, 2).unwrap();
-        let positions: Vec<_> = rect.iter_pos_col_major().collect();
+        let positions: Vec<_> = rect.into_iter_col_major().collect();
         assert_eq!(
             positions,
             &[
@@ -677,7 +677,7 @@ mod tests {
     #[test]
     fn iter_pos_row_major_offset() {
         let rect = Rect::from_ltrb(1, 2, 3, 6).unwrap();
-        let positions: Vec<_> = rect.iter_pos_row_major().collect();
+        let positions: Vec<_> = rect.into_iter_row_major().collect();
         assert_eq!(
             positions,
             &[
