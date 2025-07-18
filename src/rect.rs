@@ -361,7 +361,7 @@ impl<T: Int> Rect<T> {
     /// assert_eq!(positions, &[Pos::new(1, 2), Pos::new(2, 2), Pos::new(1, 3), Pos::new(2, 3)]);
     /// ```
     pub fn iter_pos_row_major(&self) -> impl Iterator<Item = Pos<T>> {
-        RowMajor::iter_pos(self)
+        RowMajor::iter_pos(*self)
     }
 
     /// Returns an iterator over the positions within the rectangle, in column-major order.
@@ -378,7 +378,7 @@ impl<T: Int> Rect<T> {
     /// assert_eq!(positions, &[Pos::new(1, 2), Pos::new(1, 3), Pos::new(2, 2), Pos::new(2, 3)]);
     /// ```
     pub fn iter_pos_col_major(&self) -> impl Iterator<Item = Pos<T>> {
-        ColMajor::iter_pos(self)
+        ColMajor::iter_pos(*self)
     }
 }
 

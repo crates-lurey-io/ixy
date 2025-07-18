@@ -64,7 +64,7 @@ pub trait Layout: Sized + crate::internal::Sealed {
     fn to_2d<T: Int>(index: Index<T, Self>, width: usize) -> Pos<T>;
 
     /// Creates an iterator of the given bounds, yielding positions in the order defined.
-    fn iter_pos<T: Int>(bounds: &Rect<T>) -> IterPos<T, Self> {
+    fn iter_pos<T: Int>(bounds: Rect<T>) -> IterPos<T, Self> {
         IterPos {
             bounds,
             current: bounds.top_left(),
@@ -74,13 +74,13 @@ pub trait Layout: Sized + crate::internal::Sealed {
 }
 
 /// An iterator over a 2-dimensional bounding rectangle, yielding positions.
-pub struct IterPos<'a, T: Int, L: Layout> {
-    bounds: &'a Rect<T>,
+pub struct IterPos<T: Int, L: Layout> {
+    bounds: Rect<T>,
     current: Pos<T>,
     layout: PhantomData<L>,
 }
 
-impl<T> Iterator for IterPos<'_, T, RowMajor>
+impl<T> Iterator for IterPos<T, RowMajor>
 where
     T: Int,
 {
@@ -103,7 +103,7 @@ where
     }
 }
 
-impl<T> Iterator for IterPos<'_, T, ColMajor>
+impl<T> Iterator for IterPos<T, ColMajor>
 where
     T: Int,
 {
@@ -218,7 +218,7 @@ mod tests {
     #[test]
     fn iter_row_major() {
         let bounds = Rect::from_ltrb(0, 0, 3, 2).unwrap();
-        let positions: Vec<_> = RowMajor::iter_pos(&bounds).collect();
+        let positions: Vec<_> = RowMajor::iter_pos(bounds).collect();
         assert_eq!(
             positions,
             &[
@@ -235,7 +235,7 @@ mod tests {
     #[test]
     fn iter_col_major() {
         let bounds = Rect::from_ltrb(0, 0, 3, 2).unwrap();
-        let positions: Vec<_> = ColMajor::iter_pos(&bounds).collect();
+        let positions: Vec<_> = ColMajor::iter_pos(bounds).collect();
         assert_eq!(
             positions,
             &[
