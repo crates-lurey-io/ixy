@@ -3,7 +3,7 @@ use core::ops::{Add, AddAssign};
 use crate::{
     HasSize, Pos,
     index::{ColMajor, Layout, RowMajor},
-    int::{Int, UnsignedInt},
+    int::Int,
 };
 
 /// A macro that creates a rectangle with the given coordinates.
@@ -416,32 +416,6 @@ impl<T: Int> HasSize for Rect<T> {
     }
 }
 
-impl<T: UnsignedInt> Rect<T> {
-    /// Creates a new rectangle from the left, top, width, and height.
-    ///
-    /// Unlike [`Rect::from_ltwh`], this method is infallible as `T` is always non-negative.
-    ///
-    /// ## Examples
-    ///
-    /// ```rust
-    /// use ixy::Rect;
-    ///
-    /// let rect = Rect::<u32>::from_ltwh_unsigned(1, 2, 3, 4);
-    /// assert_eq!(rect.left(), 1);
-    /// assert_eq!(rect.top(), 2);
-    /// assert_eq!(rect.right(), 4);
-    /// assert_eq!(rect.bottom(), 6);
-    /// ```
-    pub fn from_ltwh_unsigned(l: T, t: T, w: T, h: T) -> Rect<T> {
-        Rect {
-            l,
-            t,
-            r: l + w,
-            b: t + h,
-        }
-    }
-}
-
 impl<T: Int> Add<Pos<T>> for Rect<T> {
     type Output = Self;
 
@@ -528,15 +502,6 @@ mod tests {
     #[test]
     fn from_ltwh_ok() {
         let rect = Rect::from_ltwh(1, 2, 3, 4);
-        assert_eq!(rect.left(), 1);
-        assert_eq!(rect.top(), 2);
-        assert_eq!(rect.right(), 4);
-        assert_eq!(rect.bottom(), 6);
-    }
-
-    #[test]
-    fn from_ltwh_unsigned() {
-        let rect = Rect::<u32>::from_ltwh_unsigned(1, 2, 3, 4);
         assert_eq!(rect.left(), 1);
         assert_eq!(rect.top(), 2);
         assert_eq!(rect.right(), 4);

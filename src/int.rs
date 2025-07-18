@@ -130,13 +130,6 @@ pub trait Int:
     fn checked_from_usize(value: usize) -> Option<Self>;
 }
 
-/// Generic trait for the built-in Rust unsigned integer types (e.g. `u8`, `u32`, `usize`, ...).
-///
-/// Unlike traits provided by crates like `num_traits`, it is _sealed_.
-///
-/// See [`Int`] for design decisions around this trait.
-pub trait UnsignedInt: Int {}
-
 /// Generic trait for the built-in Rust signed integer types (e.g. `i8`, `i32`, `isize`, ...).
 ///
 /// Unlike traits provided by crates like `num_traits`, it is _sealed_.
@@ -170,14 +163,6 @@ macro_rules! impl_int {
   };
 }
 
-macro_rules! impl_unsigned_int {
-  ($($t:ty),*) => {
-    $(
-      impl UnsignedInt for $t {}
-    )*
-  };
-}
-
 macro_rules! impl_signed_int {
   ($($t:ty),*) => {
     $(
@@ -202,16 +187,6 @@ impl_int!(
     i64,
     i128,
     isize
-);
-
-#[rustfmt::skip]
-impl_unsigned_int!(
-    u8,
-    u16,
-    u32,
-    u64,
-    u128,
-    usize
 );
 
 #[rustfmt::skip]
