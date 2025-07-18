@@ -1,7 +1,7 @@
 use core::ops;
 
 use crate::{
-    IntoSize,
+    Size,
     int::{Int, SignedInt},
 };
 
@@ -441,14 +441,19 @@ impl<S: Int, T: Int + TryFrom<S>> TryFromPos<S> for Pos<T> {
     }
 }
 
-impl<T: Int> IntoSize for Pos<T> {
-    type Dim = T;
+impl<T: Int> TryFrom<Pos<T>> for Size {
+    type Error = TryFromPosError;
 
-    fn into_size(self) -> crate::Size<Self::Dim> {
-        crate::Size {
-            width: self.x,
-            height: self.y,
-        }
+    fn try_from(value: Pos<T>) -> Result<Self, TryFromPosError> {
+        let width = value
+            .x
+            .checked_to_usize()
+            .ok_or(TryFromPosError::OutOfRange)?;
+        let height = value
+            .y
+            .checked_to_usize()
+            .ok_or(TryFromPosError::OutOfRange)?;
+        Ok(Size::new(width, height))
     }
 }
 
@@ -639,5 +644,35 @@ mod tests {
         *x = 5;
         *y = 6;
         assert_eq!(pos, Pos::new(5, 6));
+    }
+
+    #[test]
+    fn add_pos() {
+        let p1 = Pos::new(3, 4);
+        let p2 = Pos::new(1, 2);
+        assert_eq!(p1 + p2, Pos::new(4, 6));
+    }
+
+    #[test]
+    fn add_assign_pos() {
+        let mut p1 = Pos::new(3, 4);
+        let p2 = Pos::new(1, 2);
+        p1 += p2;
+        assert_eq!(p1, Pos::new(4, 6));
+    }
+
+    #[test]
+    fn into_size() {
+        let pos = Pos::new(3, 4);
+        let size = Size::try_from(pos).unwrap();
+        assert_eq!(size.width, 3);
+        assert_eq!(size.height, 4);
+    }
+
+    #[test]
+    fn into_size_wrapped() {
+        let pos = Pos::new(-3, -4);
+        let size = Size::try_from(pos);
+        assert!(size.is_err());
     }
 }

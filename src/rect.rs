@@ -1,3 +1,5 @@
+use core::ops::{Add, AddAssign};
+
 use crate::{
     HasSize, Pos,
     index::{ColMajor, Layout, RowMajor},
@@ -146,31 +148,23 @@ impl<T: Int> Rect<T> {
 
     /// Creates a new rectangle from the `l`eft and `t`op coordinates, and `w`idth and `h`eight.
     ///
-    /// ## Errors
-    ///
-    /// Returns an error if either the width or height is negative.
-    ///
     /// ## Examples
     ///
     /// ```rust
     /// use ixy::Rect;
     ///
     /// let rect = Rect::from_ltwh(1, 2, 3, 4);
-    /// assert!(rect.is_ok());
-    ///
-    /// let invalid_rect = Rect::from_ltwh(1, 2, -3, 4);
-    /// assert!(invalid_rect.is_err());
+    /// assert_eq!(rect.left(), 1);
+    /// assert_eq!(rect.top(), 2);
+    /// assert_eq!(rect.right(), 4);
+    /// assert_eq!(rect.bottom(), 6);
     /// ```
-    pub fn from_ltwh(l: T, t: T, w: T, h: T) -> Result<Self, RectError> {
-        if w < T::ZERO || h < T::ZERO {
-            Err(RectError::InvalidDimensions)
-        } else {
-            Ok(Self {
-                l,
-                t,
-                r: l + w,
-                b: t + h,
-            })
+    pub fn from_ltwh(l: T, t: T, w: usize, h: usize) -> Self {
+        Self {
+            l,
+            t,
+            r: l + T::from_usize(w),
+            b: t + T::from_usize(h),
         }
     }
 
@@ -260,8 +254,8 @@ impl<T: Int> Rect<T> {
     /// let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
     /// assert_eq!(rect.width(), 2);
     /// ```
-    pub fn width(&self) -> T {
-        self.r - self.l
+    pub fn width(&self) -> usize {
+        (self.r - self.l).to_usize()
     }
 
     /// Returns the height of the rectangle, which is the distance between the top and bottom edges.
@@ -274,13 +268,13 @@ impl<T: Int> Rect<T> {
     /// let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
     /// assert_eq!(rect.height(), 2);
     /// ```
-    pub fn height(&self) -> T {
-        self.b - self.t
+    pub fn height(&self) -> usize {
+        (self.b - self.t).to_usize()
     }
 
     /// Returns `true` if the rectangle is empty, i.e., if its width or height is zero.
     pub fn is_empty(&self) -> bool {
-        self.width() == T::ZERO || self.height() == T::ZERO
+        self.width() == 0 || self.height() == 0
     }
 
     /// Returns the area of the rectangle, which is the product of its width and height.
@@ -293,7 +287,7 @@ impl<T: Int> Rect<T> {
     /// let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
     /// assert_eq!(rect.area(), 4);
     /// ```
-    pub fn area(&self) -> T {
+    pub fn area(&self) -> usize {
         self.width() * self.height()
     }
 
@@ -414,9 +408,7 @@ impl<T: Int> Rect<T> {
 }
 
 impl<T: Int> HasSize for Rect<T> {
-    type Dim = T;
-
-    fn size(&self) -> crate::Size<Self::Dim> {
+    fn size(&self) -> crate::Size {
         crate::Size {
             width: self.width(),
             height: self.height(),
@@ -447,6 +439,28 @@ impl<T: UnsignedInt> Rect<T> {
             r: l + w,
             b: t + h,
         }
+    }
+}
+
+impl<T: Int> Add<Pos<T>> for Rect<T> {
+    type Output = Self;
+
+    fn add(self, rhs: Pos<T>) -> Self::Output {
+        Self {
+            l: self.l + rhs.x,
+            t: self.t + rhs.y,
+            r: self.r + rhs.x,
+            b: self.b + rhs.y,
+        }
+    }
+}
+
+impl<T: Int> AddAssign<Pos<T>> for Rect<T> {
+    fn add_assign(&mut self, rhs: Pos<T>) {
+        self.l += rhs.x;
+        self.t += rhs.y;
+        self.r += rhs.x;
+        self.b += rhs.y;
     }
 }
 
@@ -513,17 +527,11 @@ mod tests {
 
     #[test]
     fn from_ltwh_ok() {
-        let rect = Rect::from_ltwh(1, 2, 3, 4).unwrap();
+        let rect = Rect::from_ltwh(1, 2, 3, 4);
         assert_eq!(rect.left(), 1);
         assert_eq!(rect.top(), 2);
         assert_eq!(rect.right(), 4);
         assert_eq!(rect.bottom(), 6);
-    }
-
-    #[test]
-    fn from_ltwh_err() {
-        let rect = Rect::from_ltwh(1, 2, -3, 4);
-        assert!(rect.is_err());
     }
 
     #[test]
@@ -746,5 +754,36 @@ mod tests {
         let b = Rect::from_ltrb(6, 7, 8, 9).unwrap();
         let intersection = a.intersect(b);
         assert_eq!(intersection, Rect::EMPTY);
+    }
+
+    #[test]
+    fn from_ltrb_unchecked() {
+        let rect = unsafe { Rect::from_ltrb_unchecked(1, 2, 3, 4) };
+        assert_eq!(rect.left(), 1);
+        assert_eq!(rect.top(), 2);
+        assert_eq!(rect.right(), 3);
+        assert_eq!(rect.bottom(), 4);
+    }
+
+    #[test]
+    fn add_pos() {
+        let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
+        let pos = Pos::new(1, 1);
+        let new_rect = rect + pos;
+        assert_eq!(new_rect.left(), 2);
+        assert_eq!(new_rect.top(), 3);
+        assert_eq!(new_rect.right(), 4);
+        assert_eq!(new_rect.bottom(), 5);
+    }
+
+    #[test]
+    fn add_assign_pos() {
+        let mut rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
+        let pos = Pos::new(1, 1);
+        rect += pos;
+        assert_eq!(rect.left(), 2);
+        assert_eq!(rect.top(), 3);
+        assert_eq!(rect.right(), 4);
+        assert_eq!(rect.bottom(), 5);
     }
 }
