@@ -3,8 +3,6 @@
 #![no_std]
 
 pub mod index;
-pub use index::Index;
-
 pub mod int;
 
 pub(crate) mod internal;

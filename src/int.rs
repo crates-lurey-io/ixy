@@ -97,8 +97,8 @@ pub trait Int:
 
     /// Converts a [`usize`] to the integer type `Self`.
     ///
-    /// In debug mode, this will panic if the value cannot be represented by `Self`, and in
-    /// release mode, the result is clamped.
+    /// In debug mode, this will panic if the value cannot be represented by `Self`, and in release
+    /// mode, the result is clamped.
     #[must_use]
     fn from_usize(value: usize) -> Self {
         const MSG: &str = "Value out of bounds for integer type";
