@@ -5,7 +5,7 @@ license = "MIT"
 
 description = "A minimal, no-std compatible crate for 2D integer geometry"
 repository = "https://github.com/crates-lurey-io/ixy"
-version = "0.5.0"
+version = "0.5.1"
 
 [lints.clippy]
 pedantic = "deny"
