@@ -93,8 +93,9 @@ where
     }
 }
 
-/// Each row is stored contiguously in memory, with the first row at the lowest address.
-pub enum RowMajor {}
+/// Continuous memory with the first row at the lowest address.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RowMajor;
 
 impl crate::internal::Sealed for RowMajor {}
 
@@ -119,8 +120,9 @@ impl Layout for RowMajor {
     }
 }
 
-/// Each column is stored contiguously in memory, with the first column at the lowest address.
-pub enum ColMajor {}
+/// Continuous memory with the first column at the lowest address.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ColMajor;
 
 impl crate::internal::Sealed for ColMajor {}
 
