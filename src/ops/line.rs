@@ -1,3 +1,5 @@
+//! Line operations.
+
 use crate::{Pos, int::Int};
 
 /// Calculates positions along a line using a fast 2D vector algorithm.

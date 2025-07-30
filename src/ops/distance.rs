@@ -1,3 +1,5 @@
+//! Distance operations for positions in a 2D space.
+
 use crate::{Pos, int::Int, internal};
 
 /// Calculates an _approximate_ [Euclidean][] distance between two positions.
