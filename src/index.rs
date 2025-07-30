@@ -38,6 +38,9 @@ pub trait Layout: Sized + crate::internal::Sealed {
 
     /// Creates an iterator of the given bounds, yielding positions in the order defined.
     fn iter_pos<T: Int>(bounds: Rect<T>) -> impl Iterator<Item = Pos<T>>;
+
+    /// Returns the layout as a type erased enum.
+    fn as_any() -> AnyLayout;
 }
 
 /// An iterator over a 2-dimensional bounding rectangle, yielding positions.
@@ -117,6 +120,10 @@ impl Layout for RowMajor {
             layout: PhantomData::<Self>,
         }
     }
+
+    fn as_any() -> AnyLayout {
+        AnyLayout::RowMajor
+    }
 }
 
 /// Continuous memory with the first column at the lowest address.
@@ -143,6 +150,20 @@ impl Layout for ColMajor {
             layout: PhantomData::<Self>,
         }
     }
+
+    fn as_any() -> AnyLayout {
+        AnyLayout::ColMajor
+    }
+}
+
+/// Type erased layout.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AnyLayout {
+    /// Row-major layout.
+    RowMajor,
+
+    /// Column-major layout.
+    ColMajor,
 }
 
 #[cfg(test)]
@@ -223,5 +244,11 @@ mod tests {
                 pos!(2, 1)
             ]
         );
+    }
+
+    #[test]
+    fn any_layout() {
+        assert_eq!(RowMajor::as_any(), AnyLayout::RowMajor);
+        assert_eq!(ColMajor::as_any(), AnyLayout::ColMajor);
     }
 }
