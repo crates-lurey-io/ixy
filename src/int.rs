@@ -34,9 +34,13 @@ pub trait Int:
     + BitXor<Output = Self>
     + BitXorAssign
     + Shl<Output = Self>
+    + Shl<u32, Output = Self>
     + ShlAssign
+    + ShlAssign<u32>
     + Shr<Output = Self>
+    + Shr<u32, Output = Self>
     + ShrAssign
+    + ShrAssign<u32>
     + Add<Output = Self>
     + AddAssign
     + Sub<Output = Self>
@@ -128,6 +132,14 @@ pub trait Int:
     ///
     /// If the value cannot be represented by `Self`, then [`None`] is returned.
     fn checked_from_usize(value: usize) -> Option<Self>;
+
+    /// Returns the absolute value of `self`.
+    #[must_use]
+    fn abs(self) -> Self;
+
+    /// Returns the number of trailing zeros in the binary representation of `self`.
+    #[must_use]
+    fn trailing_zeros(self) -> u32;
 }
 
 /// Generic trait for the built-in Rust signed integer types (e.g. `i8`, `i32`, `isize`, ...).
@@ -140,7 +152,7 @@ pub trait SignedInt: Int + Neg<Output = Self> {
     const NEG_ONE: Self;
 }
 
-macro_rules! impl_int {
+macro_rules! impl_unsigned_int {
   ($($t:ty),*) => {
     $(
       impl Sealed for $t {}
@@ -158,6 +170,14 @@ macro_rules! impl_int {
         fn checked_from_usize(value: usize) -> Option<Self> {
           Self::try_from(value).ok()
         }
+
+        fn abs(self) -> Self {
+          self
+        }
+
+        fn trailing_zeros(self) -> u32 {
+          self.trailing_zeros()
+        }
       }
     )*
   };
@@ -166,6 +186,35 @@ macro_rules! impl_int {
 macro_rules! impl_signed_int {
   ($($t:ty),*) => {
     $(
+      impl Sealed for $t {}
+
+      impl Int for $t {
+        const ZERO: Self = 0;
+        const ONE: Self = 1;
+        const MIN: Self = <$t>::MIN;
+        const MAX: Self = <$t>::MAX;
+
+        fn checked_to_usize(&self) -> Option<usize> {
+          usize::try_from(*self).ok()
+        }
+
+        fn checked_from_usize(value: usize) -> Option<Self> {
+          Self::try_from(value).ok()
+        }
+
+        fn abs(self) -> Self {
+          if self < Self::ZERO {
+            -self
+          } else {
+            self
+          }
+        }
+
+        fn trailing_zeros(self) -> u32 {
+          self.trailing_zeros()
+        }
+      }
+
       impl SignedInt for $t {
         const NEG_ONE: Self = -1;
       }
@@ -174,19 +223,13 @@ macro_rules! impl_signed_int {
 }
 
 #[rustfmt::skip]
-impl_int!(
+impl_unsigned_int!(
     u8,
     u16,
     u32,
     u64,
     u128,
-    usize,
-    i8,
-    i16,
-    i32,
-    i64,
-    i128,
-    isize
+    usize
 );
 
 #[rustfmt::skip]

@@ -3,6 +3,7 @@ use core::ops;
 use crate::{
     Size,
     int::{Int, SignedInt},
+    internal,
 };
 
 /// A macro that creates a position with the given `x` and `y` coordinates.
@@ -240,6 +241,27 @@ impl<T: Int> Pos<T> {
     pub const fn new(x: T, y: T) -> Self {
         Self { x, y }
     }
+
+    /// Returns an approximate normalized vector of the position.
+    ///
+    /// Exact normalization with integer math is not possible, so thhis method returns an
+    /// approximation that is close enough for most use cases, such as calculating directions or
+    /// distances.
+    ///
+    /// The result is a vector with the same direction as `self`, but with a magnitude as close to
+    /// `1` as possible; the result is not guaranteed to have a magnitude of exactly `1`.
+    #[must_use]
+    pub fn normalized_approx(&self) -> Self {
+        if self == &Self::ORIGIN {
+            Self::ORIGIN
+        } else {
+            let gcd = internal::gcd(self.x, self.y);
+            Self {
+                x: self.x / gcd,
+                y: self.y / gcd,
+            }
+        }
+    }
 }
 
 impl<T: SignedInt> Pos<T> {
@@ -322,6 +344,24 @@ impl<T: Int> ops::AddAssign<Pos<T>> for Pos<T> {
     fn add_assign(&mut self, rhs: Pos<T>) {
         self.x += rhs.x;
         self.y += rhs.y;
+    }
+}
+
+impl<T: Int> ops::Sub<Pos<T>> for Pos<T> {
+    type Output = Self;
+
+    fn sub(self, rhs: Pos<T>) -> Self::Output {
+        Self {
+            x: self.x - rhs.x,
+            y: self.y - rhs.y,
+        }
+    }
+}
+
+impl<T: Int> ops::SubAssign<Pos<T>> for Pos<T> {
+    fn sub_assign(&mut self, rhs: Pos<T>) {
+        self.x -= rhs.x;
+        self.y -= rhs.y;
     }
 }
 
@@ -674,5 +714,18 @@ mod tests {
         let pos = Pos::new(-3, -4);
         let size = Size::try_from(pos);
         assert!(size.is_err());
+    }
+
+    #[test]
+    fn normalized() {
+        assert_eq!(Pos::new(0, 0).normalized_approx(), Pos::ORIGIN);
+        assert_eq!(Pos::new(1, 0).normalized_approx(), Pos::X);
+        assert_eq!(Pos::new(0, 1).normalized_approx(), Pos::Y);
+        assert_eq!(Pos::new(2, 0).normalized_approx(), Pos::X);
+        assert_eq!(Pos::new(0, 2).normalized_approx(), Pos::Y);
+        assert_eq!(
+            Pos::new(6, 8).normalized_approx(),
+            Pos::new(3, 4).normalized_approx()
+        );
     }
 }

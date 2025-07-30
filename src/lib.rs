@@ -24,6 +24,7 @@
 
 pub mod index;
 pub mod int;
+pub mod ops;
 
 pub(crate) mod internal;
 
