@@ -94,8 +94,7 @@ where
 }
 
 /// Continuous memory with the first row at the lowest address.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct RowMajor;
+pub enum RowMajor {}
 
 impl crate::internal::Sealed for RowMajor {}
 
@@ -121,8 +120,7 @@ impl Layout for RowMajor {
 }
 
 /// Continuous memory with the first column at the lowest address.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ColMajor;
+pub enum ColMajor {}
 
 impl crate::internal::Sealed for ColMajor {}
 
@@ -145,6 +143,53 @@ impl Layout for ColMajor {
             layout: PhantomData::<Self>,
         }
     }
+}
+
+/// A type-erased dynamic layout that can be either row-major or col-major.
+///
+/// The same methods as in [`Layout`] are available, but dispatched on `self`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LayoutKind<L>
+where
+    L: Layout,
+{
+    _marker: PhantomData<L>,
+}
+
+impl<L> LayoutKind<L>
+where
+    L: Layout,
+{
+    /// Converts a 2D position to a linear memory index.
+    #[must_use]
+    pub fn to_1d<T: Int>(pos: Pos<T>, width: usize) -> usize {
+        L::to_1d(pos, width)
+    }
+
+    /// Converts a linear memory index to a 2D position.
+    #[must_use]
+    pub fn to_2d<T: Int>(index: usize, width: usize) -> Pos<T> {
+        L::to_2d(index, width)
+    }
+
+    /// Creates an iterator of the given bounds, yielding positions in the order defined.
+    pub fn iter_pos<T: Int>(bounds: Rect<T>) -> impl Iterator<Item = Pos<T>> {
+        L::iter_pos(bounds)
+    }
+}
+
+impl LayoutKind<RowMajor> {
+    /// A constant representing row-major layout.
+    pub const ROW_MAJOR: Self = LayoutKind {
+        _marker: PhantomData::<RowMajor>,
+    };
+}
+
+impl LayoutKind<ColMajor> {
+    /// A constant representing col-major layout.
+    pub const COL_MAJOR: Self = LayoutKind {
+        _marker: PhantomData::<ColMajor>,
+    };
 }
 
 #[cfg(test)]
@@ -214,6 +259,58 @@ mod tests {
     fn iter_col_major() {
         let bounds = Rect::from_ltrb(0, 0, 3, 2).unwrap();
         let positions: Vec<_> = ColMajor::iter_pos(bounds).collect();
+        assert_eq!(
+            positions,
+            &[
+                pos!(0, 0),
+                pos!(0, 1),
+                pos!(1, 0),
+                pos!(1, 1),
+                pos!(2, 0),
+                pos!(2, 1)
+            ]
+        );
+    }
+
+    #[test]
+    fn layout_kind_row_major() {
+        let pos = Pos::new(2, 3);
+        let width = 5;
+
+        let index = LayoutKind::<RowMajor>::to_1d(pos, width);
+        assert_eq!(index, 17); // 3 * 5 + 2
+
+        let pos: Pos<i32> = LayoutKind::<RowMajor>::to_2d(index, width);
+        assert_eq!(pos, Pos::new(2, 3));
+
+        let bounds = Rect::from_ltrb(0, 0, 3, 2).unwrap();
+        let positions: Vec<_> = LayoutKind::<RowMajor>::iter_pos(bounds).collect();
+        assert_eq!(
+            positions,
+            &[
+                pos!(0, 0),
+                pos!(1, 0),
+                pos!(2, 0),
+                pos!(0, 1),
+                pos!(1, 1),
+                pos!(2, 1)
+            ]
+        );
+    }
+
+    #[test]
+    fn layout_kind_col_major() {
+        let pos = Pos::new(2, 3);
+        let width = 5;
+
+        let index = LayoutKind::<ColMajor>::to_1d(pos, width);
+        assert_eq!(index, 13); // 2 * 5 + 3
+
+        let pos: Pos<i32> = LayoutKind::<ColMajor>::to_2d(index, width);
+        assert_eq!(pos, Pos::new(2, 3));
+
+        let bounds = Rect::from_ltrb(0, 0, 3, 2).unwrap();
+        let positions: Vec<_> = LayoutKind::<ColMajor>::iter_pos(bounds).collect();
         assert_eq!(
             positions,
             &[
