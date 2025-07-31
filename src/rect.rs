@@ -1,4 +1,4 @@
-use core::ops::{Add, AddAssign};
+use core::ops::{Add, AddAssign, Sub, SubAssign};
 
 use crate::{
     HasSize, Pos,
@@ -438,6 +438,28 @@ impl<T: Int> AddAssign<Pos<T>> for Rect<T> {
     }
 }
 
+impl<T: Int> Sub<Pos<T>> for Rect<T> {
+    type Output = Self;
+
+    fn sub(self, rhs: Pos<T>) -> Self::Output {
+        Self {
+            l: self.l - rhs.x,
+            t: self.t - rhs.y,
+            r: self.r - rhs.x,
+            b: self.b - rhs.y,
+        }
+    }
+}
+
+impl<T: Int> SubAssign<Pos<T>> for Rect<T> {
+    fn sub_assign(&mut self, rhs: Pos<T>) {
+        self.l -= rhs.x;
+        self.t -= rhs.y;
+        self.r -= rhs.x;
+        self.b -= rhs.y;
+    }
+}
+
 #[cfg(test)]
 mod tests {
     extern crate alloc;
@@ -750,5 +772,27 @@ mod tests {
         assert_eq!(rect.top(), 3);
         assert_eq!(rect.right(), 4);
         assert_eq!(rect.bottom(), 5);
+    }
+
+    #[test]
+    fn sub_pos() {
+        let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
+        let pos = Pos::new(1, 1);
+        let new_rect = rect - pos;
+        assert_eq!(new_rect.left(), 0);
+        assert_eq!(new_rect.top(), 1);
+        assert_eq!(new_rect.right(), 2);
+        assert_eq!(new_rect.bottom(), 3);
+    }
+
+    #[test]
+    fn sub_assign_pos() {
+        let mut rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
+        let pos = Pos::new(1, 1);
+        rect -= pos;
+        assert_eq!(rect.left(), 0);
+        assert_eq!(rect.top(), 1);
+        assert_eq!(rect.right(), 2);
+        assert_eq!(rect.bottom(), 3);
     }
 }
