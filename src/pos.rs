@@ -383,6 +383,60 @@ impl<T: Int> ops::MulAssign<T> for Pos<T> {
     }
 }
 
+impl<T: Int> ops::Mul<Pos<T>> for Pos<T> {
+    type Output = Self;
+
+    fn mul(self, rhs: Pos<T>) -> Self::Output {
+        Self {
+            x: self.x * rhs.x,
+            y: self.y * rhs.y,
+        }
+    }
+}
+
+impl<T: Int> ops::MulAssign<Pos<T>> for Pos<T> {
+    fn mul_assign(&mut self, rhs: Pos<T>) {
+        self.x *= rhs.x;
+        self.y *= rhs.y;
+    }
+}
+
+impl<T: Int> ops::Div<T> for Pos<T> {
+    type Output = Self;
+
+    fn div(self, rhs: T) -> Self::Output {
+        Self {
+            x: self.x / rhs,
+            y: self.y / rhs,
+        }
+    }
+}
+
+impl<T: Int> ops::DivAssign<T> for Pos<T> {
+    fn div_assign(&mut self, rhs: T) {
+        self.x /= rhs;
+        self.y /= rhs;
+    }
+}
+
+impl<T: Int> ops::Div<Pos<T>> for Pos<T> {
+    type Output = Self;
+
+    fn div(self, rhs: Pos<T>) -> Self::Output {
+        Self {
+            x: self.x / rhs.x,
+            y: self.y / rhs.y,
+        }
+    }
+}
+
+impl<T: Int> ops::DivAssign<Pos<T>> for Pos<T> {
+    fn div_assign(&mut self, rhs: Pos<T>) {
+        self.x /= rhs.x;
+        self.y /= rhs.y;
+    }
+}
+
 impl<T: Int> From<(T, T)> for Pos<T> {
     fn from(value: (T, T)) -> Self {
         Self::new(value.0, value.1)
@@ -727,5 +781,61 @@ mod tests {
             Pos::new(6, 8).normalized_approx(),
             Pos::new(3, 4).normalized_approx()
         );
+    }
+
+    #[test]
+    fn mul_scalar() {
+        let p = Pos::new(3, 4) * 2;
+        assert_eq!(p, Pos::new(6, 8));
+    }
+
+    #[test]
+    fn mul_assign_scalar() {
+        let mut p = Pos::new(3, 4);
+        p *= 2;
+        assert_eq!(p, Pos::new(6, 8));
+    }
+
+    #[test]
+    fn mul_pos() {
+        let p1 = Pos::new(3, 4);
+        let p2 = Pos::new(2, 3);
+        assert_eq!(p1 * p2, Pos::new(6, 12));
+    }
+
+    #[test]
+    fn mul_assign_pos() {
+        let mut p1 = Pos::new(3, 4);
+        let p2 = Pos::new(2, 3);
+        p1 *= p2;
+        assert_eq!(p1, Pos::new(6, 12));
+    }
+
+    #[test]
+    fn div_scalar() {
+        let p = Pos::new(6, 8) / 2;
+        assert_eq!(p, Pos::new(3, 4));
+    }
+
+    #[test]
+    fn div_assign_scalar() {
+        let mut p = Pos::new(6, 8);
+        p /= 2;
+        assert_eq!(p, Pos::new(3, 4));
+    }
+
+    #[test]
+    fn div_pos() {
+        let p1 = Pos::new(6, 8);
+        let p2 = Pos::new(2, 4);
+        assert_eq!(p1 / p2, Pos::new(3, 2));
+    }
+
+    #[test]
+    fn div_assign_pos() {
+        let mut p1 = Pos::new(6, 8);
+        let p2 = Pos::new(2, 4);
+        p1 /= p2;
+        assert_eq!(p1, Pos::new(3, 2));
     }
 }

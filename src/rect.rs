@@ -1,4 +1,4 @@
-use core::ops::{Add, AddAssign, Sub, SubAssign};
+use core::ops;
 
 use crate::{
     HasSize, Pos,
@@ -416,7 +416,7 @@ impl<T: Int> HasSize for Rect<T> {
     }
 }
 
-impl<T: Int> Add<Pos<T>> for Rect<T> {
+impl<T: Int> ops::Add<Pos<T>> for Rect<T> {
     type Output = Self;
 
     fn add(self, rhs: Pos<T>) -> Self::Output {
@@ -429,7 +429,7 @@ impl<T: Int> Add<Pos<T>> for Rect<T> {
     }
 }
 
-impl<T: Int> AddAssign<Pos<T>> for Rect<T> {
+impl<T: Int> ops::AddAssign<Pos<T>> for Rect<T> {
     fn add_assign(&mut self, rhs: Pos<T>) {
         self.l += rhs.x;
         self.t += rhs.y;
@@ -438,7 +438,7 @@ impl<T: Int> AddAssign<Pos<T>> for Rect<T> {
     }
 }
 
-impl<T: Int> Sub<Pos<T>> for Rect<T> {
+impl<T: Int> ops::Sub<Pos<T>> for Rect<T> {
     type Output = Self;
 
     fn sub(self, rhs: Pos<T>) -> Self::Output {
@@ -451,12 +451,56 @@ impl<T: Int> Sub<Pos<T>> for Rect<T> {
     }
 }
 
-impl<T: Int> SubAssign<Pos<T>> for Rect<T> {
+impl<T: Int> ops::SubAssign<Pos<T>> for Rect<T> {
     fn sub_assign(&mut self, rhs: Pos<T>) {
         self.l -= rhs.x;
         self.t -= rhs.y;
         self.r -= rhs.x;
         self.b -= rhs.y;
+    }
+}
+
+impl<T: Int> ops::Mul<T> for Rect<T> {
+    type Output = Self;
+
+    fn mul(self, rhs: T) -> Self::Output {
+        Self {
+            l: self.l * rhs,
+            t: self.t * rhs,
+            r: self.r * rhs,
+            b: self.b * rhs,
+        }
+    }
+}
+
+impl<T: Int> ops::MulAssign<T> for Rect<T> {
+    fn mul_assign(&mut self, rhs: T) {
+        self.l *= rhs;
+        self.t *= rhs;
+        self.r *= rhs;
+        self.b *= rhs;
+    }
+}
+
+impl<T: Int> ops::Div<T> for Rect<T> {
+    type Output = Self;
+
+    fn div(self, rhs: T) -> Self::Output {
+        Self {
+            l: self.l / rhs,
+            t: self.t / rhs,
+            r: self.r / rhs,
+            b: self.b / rhs,
+        }
+    }
+}
+
+impl<T: Int> ops::DivAssign<T> for Rect<T> {
+    fn div_assign(&mut self, rhs: T) {
+        self.l /= rhs;
+        self.t /= rhs;
+        self.r /= rhs;
+        self.b /= rhs;
     }
 }
 
@@ -794,5 +838,45 @@ mod tests {
         assert_eq!(rect.top(), 1);
         assert_eq!(rect.right(), 2);
         assert_eq!(rect.bottom(), 3);
+    }
+
+    #[test]
+    fn mul_int() {
+        let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
+        let new_rect = rect * 2;
+        assert_eq!(new_rect.left(), 2);
+        assert_eq!(new_rect.top(), 4);
+        assert_eq!(new_rect.right(), 6);
+        assert_eq!(new_rect.bottom(), 8);
+    }
+
+    #[test]
+    fn mul_assign_int() {
+        let mut rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
+        rect *= 2;
+        assert_eq!(rect.left(), 2);
+        assert_eq!(rect.top(), 4);
+        assert_eq!(rect.right(), 6);
+        assert_eq!(rect.bottom(), 8);
+    }
+
+    #[test]
+    fn div_int() {
+        let rect = Rect::from_ltrb(2, 4, 6, 8).unwrap();
+        let new_rect = rect / 2;
+        assert_eq!(new_rect.left(), 1);
+        assert_eq!(new_rect.top(), 2);
+        assert_eq!(new_rect.right(), 3);
+        assert_eq!(new_rect.bottom(), 4);
+    }
+
+    #[test]
+    fn div_assign_int() {
+        let mut rect = Rect::from_ltrb(2, 4, 6, 8).unwrap();
+        rect /= 2;
+        assert_eq!(rect.left(), 1);
+        assert_eq!(rect.top(), 2);
+        assert_eq!(rect.right(), 3);
+        assert_eq!(rect.bottom(), 4);
     }
 }
