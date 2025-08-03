@@ -22,8 +22,8 @@
 
 #![no_std]
 
-pub mod index;
 pub mod int;
+pub mod layout;
 pub mod ops;
 
 pub(crate) mod internal;

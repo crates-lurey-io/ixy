@@ -2,14 +2,18 @@
 //!
 //! These traits provides a common interface for working with integers generically.
 
-use core::ops::{
-    Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
-    Mul, MulAssign, Neg, Not, Rem, RemAssign, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
+use core::{
+    fmt::Debug,
+    ops::{
+        Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div,
+        DivAssign, Mul, MulAssign, Neg, Not, Rem, RemAssign, Shl, ShlAssign, Shr, ShrAssign, Sub,
+        SubAssign,
+    },
 };
 
 use crate::internal::Sealed;
 
-/// Generic trait for the built-in Rust integer types (e.g. `u8`, `u32`, `i64`, `isize`, ...).
+/// Generic trait for the built-in Rust integer types.
 ///
 /// Unlike traits provided by crates like `num_traits`, it is _sealed_.
 ///
@@ -20,6 +24,7 @@ use crate::internal::Sealed;
 #[allow(private_bounds)]
 pub trait Int:
     Sealed
+    + Debug
     + Sized
     + Copy
     + PartialEq
@@ -68,12 +73,12 @@ pub trait Int:
     ///
     /// In debug mode, this will panic if the value cannot be represented by a [`usize`], and in
     /// release mode, the result is clamped.
-    fn to_usize(&self) -> usize {
+    fn to_usize(self) -> usize {
         const MSG: &str = "Value out of bounds for usize";
         #[cfg(not(coverage))]
         {
             self.checked_to_usize().unwrap_or_else(|| {
-                let val = *self;
+                let val = self;
                 debug_assert!(val >= Self::ZERO && val <= Self::MAX as Self, "{MSG}");
                 self.saturating_to_usize()
             })
@@ -87,17 +92,17 @@ pub trait Int:
     /// Converts the value of `self` to a [`usize`].
     ///
     /// If the value cannot be represented by a [`usize`], then it is clamped.
-    fn saturating_to_usize(&self) -> usize {
+    fn saturating_to_usize(self) -> usize {
         self.checked_to_usize().unwrap_or_else(|| {
             // This is a fallback for when the value is negative or too large.
-            if *self < Self::ZERO { 0 } else { usize::MAX }
+            if self < Self::ZERO { 0 } else { usize::MAX }
         })
     }
 
     /// Converts the value of `self` to a [`usize`].
     ///
     /// If the value cannot be represented by a [`usize`], then [`None`] is returned.
-    fn checked_to_usize(&self) -> Option<usize>;
+    fn checked_to_usize(self) -> Option<usize>;
 
     /// Converts a [`usize`] to the integer type `Self`.
     ///
@@ -142,7 +147,7 @@ pub trait Int:
     fn trailing_zeros(self) -> u32;
 }
 
-/// Generic trait for the built-in Rust signed integer types (e.g. `i8`, `i32`, `isize`, ...).
+/// Generic trait for the built-in Rust signed integer types.
 ///
 /// Unlike traits provided by crates like `num_traits`, it is _sealed_.
 ///
@@ -163,8 +168,8 @@ macro_rules! impl_unsigned_int {
         const MIN: Self = <$t>::MIN;
         const MAX: Self = <$t>::MAX;
 
-        fn checked_to_usize(&self) -> Option<usize> {
-          usize::try_from(*self).ok()
+        fn checked_to_usize(self) -> Option<usize> {
+          usize::try_from(self).ok()
         }
 
         fn checked_from_usize(value: usize) -> Option<Self> {
@@ -194,8 +199,8 @@ macro_rules! impl_signed_int {
         const MIN: Self = <$t>::MIN;
         const MAX: Self = <$t>::MAX;
 
-        fn checked_to_usize(&self) -> Option<usize> {
-          usize::try_from(*self).ok()
+        fn checked_to_usize(self) -> Option<usize> {
+          usize::try_from(self).ok()
         }
 
         fn checked_from_usize(value: usize) -> Option<Self> {
