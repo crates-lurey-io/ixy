@@ -17,7 +17,7 @@ use crate::{
 pub struct ColumnMajor;
 
 /// Iterator over positions in column-major order.
-pub struct IterPosColMajor<T: Int> {
+struct IterPosColMajor<T: Int> {
     current: Pos<T>,
     bounds: Rect<T>,
 }
@@ -63,7 +63,7 @@ impl<T: Int> ExactSizeIterator for IterPosColMajor<T> {
 impl<T: Int> FusedIterator for IterPosColMajor<T> {}
 
 /// Iterator over blocks in column-major order.
-pub struct IterBlockColMajor<T: Int> {
+struct IterBlockColMajor<T: Int> {
     current: Pos<T>,
     bounds: Rect<T>,
     size: Size,
@@ -114,9 +114,6 @@ impl<T: Int> ExactSizeIterator for IterBlockColMajor<T> {
 impl<T: Int> FusedIterator for IterBlockColMajor<T> {}
 
 impl Traversal for ColumnMajor {
-    type PosIter<'a, T: Int> = IterPosColMajor<T>;
-    type BlockIter<'a, T: Int> = IterBlockColMajor<T>;
-
     /// Returns an iterator over the positions in the specified rectangle.
     ///
     /// The positions are returned in column-major order.
@@ -145,7 +142,7 @@ impl Traversal for ColumnMajor {
     ///     ]
     /// );
     /// ```
-    fn positions<T: Int>(&self, rect: Rect<T>) -> Self::PosIter<'_, T> {
+    fn positions<T: Int>(&self, rect: Rect<T>) -> impl Iterator<Item = Pos<T>> {
         let current = rect.top_left();
         IterPosColMajor {
             current,
@@ -179,7 +176,7 @@ impl Traversal for ColumnMajor {
     ///     ]
     /// );
     /// ```
-    fn blocks<T: Int>(&self, rect: Rect<T>, size: Size) -> Self::BlockIter<'_, T> {
+    fn blocks<T: Int>(&self, rect: Rect<T>, size: Size) -> impl Iterator<Item = Rect<T>> {
         let current = rect.top_left();
         IterBlockColMajor {
             current,

@@ -13,25 +13,15 @@ pub use row_major::RowMajor;
 
 /// Defines iterating orders for traversing a 2D layout.
 pub trait Traversal {
-    /// Type of the iterator for positions.
-    type PosIter<'a, T: Int>: Iterator<Item = Pos<T>>
-    where
-        Self: 'a;
-
-    /// Type of the iterator for blocks.
-    type BlockIter<'a, T: Int>: Iterator<Item = Rect<T>>
-    where
-        Self: 'a;
-
     /// Returns an iterator over the positions in the specified rectangle.
     ///
     /// The positions are returned in the order defined by the traversal.
-    fn positions<T: Int>(&self, rect: Rect<T>) -> Self::PosIter<'_, T>;
+    fn positions<T: Int>(&self, rect: Rect<T>) -> impl Iterator<Item = Pos<T>>;
 
     /// Returns an iterator over blocks of the specified size within the rectangle.
     ///
     /// Blocks that would be partially outside the rectangle are not yielded.
-    fn blocks<T: Int>(&self, rect: Rect<T>, size: Size) -> Self::BlockIter<'_, T>;
+    fn blocks<T: Int>(&self, rect: Rect<T>, size: Size) -> impl Iterator<Item = Rect<T>>;
 }
 
 /// Defines the mapping of 2D positions to a 1D index and vice versa.
