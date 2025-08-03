@@ -3,7 +3,7 @@ use core::iter::FusedIterator;
 use crate::{
     Pos, Rect, Size,
     int::Int,
-    layout::{LinearLayout, Traversal},
+    layout::{Layout, Linear},
 };
 
 /// Left-to-right, top-to-bottom traversal order for 2D layouts.
@@ -130,7 +130,7 @@ impl<T: Int> ExactSizeIterator for IterBlockRowMajor<T> {
 
 impl<T: Int> FusedIterator for IterBlockRowMajor<T> {}
 
-impl Traversal for RowMajor {
+impl Layout for RowMajor {
     /// Returns an iterator over the positions in the specified rectangle.
     ///
     /// The positions are returned in row-major order.
@@ -143,11 +143,11 @@ impl Traversal for RowMajor {
     /// ```
     ///
     /// ```rust
-    /// use ixy::{Pos, Rect, layout::{RowMajor, Traversal}};
+    /// use ixy::{Pos, Rect, layout::{Layout, RowMajor}};
     ///
     /// let rect = Rect::from_ltwh(0, 0, 3, 2);
     /// let traversal = RowMajor;
-    /// let positions: Vec<_> = traversal.positions(&rect).collect();
+    /// let positions: Vec<_> = traversal.pos_iter(rect).collect();
     /// assert_eq!(
     ///     positions,
     ///     &[
@@ -160,7 +160,7 @@ impl Traversal for RowMajor {
     ///     ]
     /// );
     /// ```
-    fn positions<T: Int>(&self, rect: Rect<T>) -> impl Iterator<Item = Pos<T>> {
+    fn pos_iter<T: Int>(&self, rect: Rect<T>) -> impl Iterator<Item = Pos<T>> {
         let current = rect.top_left();
         IterPosRowMajor {
             current,
@@ -180,12 +180,12 @@ impl Traversal for RowMajor {
     /// ```
     ///
     /// ```rust
-    /// use ixy::{Rect, Size, layout::{RowMajor, Traversal}};
+    /// use ixy::{Rect, Size, layout::{Layout, RowMajor}};
     ///
     /// let rect = Rect::from_ltwh(0, 0, 4, 4);
     /// let traversal = RowMajor;
     /// let size = Size::new(2, 2);
-    /// let blocks: Vec<_> = traversal.blocks(&rect, size).collect();
+    /// let blocks: Vec<_> = traversal.rect_iter(rect, size).collect();
     /// assert_eq!(
     ///     blocks,
     ///     &[
@@ -196,7 +196,7 @@ impl Traversal for RowMajor {
     ///     ]
     /// );
     /// ```
-    fn blocks<T: Int>(&self, rect: Rect<T>, size: Size) -> impl Iterator<Item = Rect<T>> {
+    fn rect_iter<T: Int>(&self, rect: Rect<T>, size: Size) -> impl Iterator<Item = Rect<T>> {
         let current = rect.top_left();
         IterBlockRowMajor {
             current,
@@ -206,7 +206,7 @@ impl Traversal for RowMajor {
     }
 }
 
-impl LinearLayout for RowMajor {
+impl Linear for RowMajor {
     fn to_1d<T: Int>(&self, pos: Pos<T>, width: usize) -> usize {
         pos.y.to_usize() * width + pos.x.to_usize()
     }
@@ -216,11 +216,37 @@ impl LinearLayout for RowMajor {
         let y = index / width;
         Pos::new(T::from_usize(x), T::from_usize(y))
     }
+
+    unsafe fn iter_rect_unchecked<'a, T: Int, E>(
+        &'a self,
+        rect: Rect<usize>,
+        size: Size,
+        data: &'a [E],
+    ) -> impl Iterator<Item = &'a E> {
+        debug_assert!(
+            data.len() == size.width * size.height,
+            "Data length does not match the area of the size"
+        );
+        debug_assert!(
+            rect.left() + rect.width() <= size.width && rect.top() + rect.height() <= size.height,
+            "Rectangle {rect:?} is out of bounds for size {size:?}"
+        );
+        (0..rect.height()).flat_map(move |row| {
+            let start = (rect.top() + row) * size.width + rect.left();
+            let slice = unsafe {
+                let ptr = data.as_ptr().add(start);
+                core::slice::from_raw_parts(ptr, rect.width())
+            };
+            slice.iter()
+        })
+    }
 }
 
 #[cfg(test)]
 mod tests {
     extern crate alloc;
+
+    use crate::layout::Block;
 
     use super::*;
     use alloc::vec::Vec;
@@ -229,7 +255,7 @@ mod tests {
     fn row_major_positions() {
         let rect = Rect::from_ltwh(0, 0, 2, 2);
         let traversal = RowMajor;
-        let positions: Vec<_> = traversal.positions(rect).collect();
+        let positions: Vec<_> = traversal.pos_iter(rect).collect();
         assert_eq!(
             positions,
             &[
@@ -246,7 +272,7 @@ mod tests {
         let rect = Rect::from_ltwh(0, 0, 4, 4);
         let traversal = RowMajor;
         let size = Size::new(2, 2);
-        let blocks: Vec<_> = traversal.blocks(rect, size).collect();
+        let blocks: Vec<_> = traversal.rect_iter(rect, size).collect();
         assert_eq!(
             blocks,
             &[
@@ -263,7 +289,7 @@ mod tests {
         let rect = Rect::from_ltwh(0, 0, 5, 3);
         let traversal = RowMajor;
         let size = Size::new(2, 2);
-        let blocks: Vec<_> = traversal.blocks(rect, size).collect();
+        let blocks: Vec<_> = traversal.rect_iter(rect, size).collect();
         assert_eq!(
             blocks,
             &[Rect::from_ltwh(0, 0, 2, 2), Rect::from_ltwh(2, 0, 2, 2),]
@@ -271,17 +297,53 @@ mod tests {
     }
 
     #[test]
-    fn row_major_to_1d() {
+    fn row_major_iter_rect_from_slice() {
         let traversal = RowMajor;
-        let pos = Pos::new(1, 2);
-        assert_eq!(traversal.to_1d(pos, 4), 9);
+        let rect = Rect::from_ltwh(0, 0, 3, 2);
+        let size = Size::new(3, 2);
+        let data: Vec<i32> = (0..6).collect(); // 3x2 grid
+        let iter: Vec<_> = traversal.iter_rect(rect, size, &data).collect();
+        assert_eq!(iter, &[&0, &1, &2, &3, &4, &5]);
+    }
+
+    #[test]
+    fn col_major_iter_rect_from_slice() {
+        let traversal = RowMajor;
+        let rect = Rect::from_ltwh(0, 0, 3, 2);
+        let size = Size::new(3, 2);
+        let data: Vec<i32> = (0..6).collect(); // 3x2 grid
+        let iter: Vec<_> = traversal.iter_rect(rect, size, &data).collect();
+        assert_eq!(iter, &[&0, &1, &2, &3, &4, &5]);
+    }
+
+    #[test]
+    fn block_row_major_row_major_from_slice() {
+        let traversal = Block::row_major(2, 2);
+        let rect = Rect::from_ltwh(0, 0, 4, 4);
+        let size = Size::new(4, 4);
+        let data: Vec<i32> = (0..16).collect(); // 4x4 grid
+        let iter: Vec<_> = traversal.iter_rect(rect, size, &data).collect();
+        assert_eq!(
+            iter,
+            &[
+                &0, &1, &2, &3, &4, &5, &6, &7, &8, &9, &10, &11, &12, &13, &14, &15
+            ]
+        );
+    }
+
+    #[test]
+    fn row_major_to_1d() {
+        assert_eq!(RowMajor.to_1d(Pos::new(0, 0), 2), 0);
+        assert_eq!(RowMajor.to_1d(Pos::new(1, 0), 2), 1);
+        assert_eq!(RowMajor.to_1d(Pos::new(0, 1), 2), 2);
+        assert_eq!(RowMajor.to_1d(Pos::new(1, 1), 2), 3);
     }
 
     #[test]
     fn row_major_to_2d() {
-        let traversal = RowMajor;
-        let index = 5;
-        let pos = traversal.to_2d(index, 4);
-        assert_eq!(pos, Pos::new(1, 1));
+        assert_eq!(RowMajor.to_2d(0, 2), Pos::new(0, 0));
+        assert_eq!(RowMajor.to_2d(1, 2), Pos::new(1, 0));
+        assert_eq!(RowMajor.to_2d(2, 2), Pos::new(0, 1));
+        assert_eq!(RowMajor.to_2d(3, 2), Pos::new(1, 1));
     }
 }

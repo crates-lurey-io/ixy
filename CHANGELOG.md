@@ -7,18 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.6.0] - Unreleased
 
+Major change to the layout system, introducing a new `Block` layout type.
+
 ### Added
 
 - `Block` layout, which stores data in continuous fixed-size (`W x H`) blocks
 
 ### Changed
 
-- `AnyLayout` is now a non-exhaustive enum, and includes a `Block` variant
-- `Layout::iter_pos` was renamed `Layout::positions`
+- `Layout` has been split into 2 traits: 
+  - `Layout` for iterating over positions, rectangles, and elements
+  - `Linear` for an (optional) optimization of linear-aligned data
+- Layouts are now `&self` instead of static-only, allowing for dynamic dispatch
 
 ### Removed
 
-- `index::IterPos` from the public API
+- `Rect::iter_pos` and related methods; use the layout traits instead
 
 ## [0.5.7] - 2025-08-01
 

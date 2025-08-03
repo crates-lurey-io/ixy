@@ -1,10 +1,6 @@
 use core::ops;
 
-use crate::{
-    HasSize, Pos, Size,
-    index::{ColMajor, Layout, RowMajor},
-    int::Int,
-};
+use crate::{HasSize, Pos, Size, int::Int};
 
 /// A macro that creates a rectangle with the given coordinates.
 ///
@@ -388,40 +384,6 @@ impl<T: Int> Rect<T> {
             Rect::EMPTY
         }
     }
-
-    /// Returns an iterator over the positions within the rectangle, in row-major order.
-    ///
-    /// The positions are exclusive of the bottom-right edge.
-    ///
-    /// ## Examples
-    ///
-    /// ```rust
-    /// use ixy::{Rect, Pos};
-    ///
-    /// let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
-    /// let positions: Vec<Pos<i32>> = rect.into_iter_row_major().collect();
-    /// assert_eq!(positions, &[Pos::new(1, 2), Pos::new(2, 2), Pos::new(1, 3), Pos::new(2, 3)]);
-    /// ```
-    pub fn into_iter_row_major(self) -> impl Iterator<Item = Pos<T>> {
-        RowMajor::positions(self)
-    }
-
-    /// Returns an iterator over the positions within the rectangle, in column-major order.
-    ///
-    /// The positions are exclusive of the bottom-right edge.
-    ///
-    /// ## Examples
-    ///
-    /// ```rust
-    /// use ixy::{Rect, Pos};
-    ///
-    /// let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
-    /// let positions: Vec<Pos<i32>> = rect.into_iter_col_major().collect();
-    /// assert_eq!(positions, &[Pos::new(1, 2), Pos::new(1, 3), Pos::new(2, 2), Pos::new(2, 3)]);
-    /// ```
-    pub fn into_iter_col_major(self) -> impl Iterator<Item = Pos<T>> {
-        ColMajor::positions(self)
-    }
 }
 
 impl<T: Int> HasSize for Rect<T> {
@@ -523,10 +485,7 @@ impl<T: Int> ops::DivAssign<T> for Rect<T> {
 
 #[cfg(test)]
 mod tests {
-    extern crate alloc;
-
     use super::*;
-    use alloc::vec::Vec;
 
     #[test]
     fn rect_macro_ltrb() {
@@ -725,59 +684,6 @@ mod tests {
     fn contains_rect_false_bottom_edge() {
         let rect = Rect::from_ltrb(1, 2, 5, 6).unwrap();
         assert!(!rect.contains_rect(Rect::from_ltrb(2, 3, 4, 7).unwrap()));
-    }
-
-    #[test]
-    fn iter_pos_row_major() {
-        let rect = Rect::from_ltrb(0, 0, 3, 2).unwrap();
-        let positions: Vec<_> = rect.into_iter_row_major().collect();
-        assert_eq!(
-            positions,
-            &[
-                Pos::new(0, 0),
-                Pos::new(1, 0),
-                Pos::new(2, 0),
-                Pos::new(0, 1),
-                Pos::new(1, 1),
-                Pos::new(2, 1)
-            ]
-        );
-    }
-
-    #[test]
-    fn iter_pos_col_major() {
-        let rect = Rect::from_ltrb(0, 0, 3, 2).unwrap();
-        let positions: Vec<_> = rect.into_iter_col_major().collect();
-        assert_eq!(
-            positions,
-            &[
-                Pos::new(0, 0),
-                Pos::new(0, 1),
-                Pos::new(1, 0),
-                Pos::new(1, 1),
-                Pos::new(2, 0),
-                Pos::new(2, 1)
-            ]
-        );
-    }
-
-    #[test]
-    fn iter_pos_row_major_offset() {
-        let rect = Rect::from_ltrb(1, 2, 3, 6).unwrap();
-        let positions: Vec<_> = rect.into_iter_row_major().collect();
-        assert_eq!(
-            positions,
-            &[
-                Pos::new(1, 2),
-                Pos::new(2, 2),
-                Pos::new(1, 3),
-                Pos::new(2, 3),
-                Pos::new(1, 4),
-                Pos::new(2, 4),
-                Pos::new(1, 5),
-                Pos::new(2, 5)
-            ]
-        );
     }
 
     #[test]
