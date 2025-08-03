@@ -1,7 +1,7 @@
 use core::ops;
 
 use crate::{
-    HasSize, Pos,
+    HasSize, Pos, Size,
     index::{ColMajor, Layout, RowMajor},
     int::Int,
 };
@@ -81,6 +81,23 @@ impl<T: Int> Rect<T> {
         r: T::ZERO,
         b: T::ZERO,
     };
+
+    /// Creates a new rectangle from the top-left corner and size.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use ixy::{Pos, Rect, Size};
+    ///
+    /// let rect = Rect::new(Pos::new(1, 2), Size::new(3, 4));
+    /// assert_eq!(rect.left(), 1);
+    /// assert_eq!(rect.top(), 2);
+    /// assert_eq!(rect.right(), 4);
+    /// assert_eq!(rect.bottom(), 6);
+    /// ```
+    pub fn new(top_left: Pos<T>, size: Size) -> Self {
+        Self::from_ltwh(top_left.x, top_left.y, size.width, size.height)
+    }
 
     /// Creates a new rectangle from the top-left and bottom-right corners.
     ///
@@ -338,7 +355,7 @@ impl<T: Int> Rect<T> {
     /// assert!(!rect.contains_rect(Rect::from_ltrb(2, 3, 4, 7).unwrap()));
     /// ```
     pub fn contains_rect(&self, other: Rect<T>) -> bool {
-        self.contains(other.l, other.t) && self.contains(other.r, other.b)
+        self.l <= other.l && self.r >= other.r && self.t <= other.t && self.b >= other.b
     }
 
     /// Returns the intersection of this rectangle with another rectangle.
@@ -386,7 +403,7 @@ impl<T: Int> Rect<T> {
     /// assert_eq!(positions, &[Pos::new(1, 2), Pos::new(2, 2), Pos::new(1, 3), Pos::new(2, 3)]);
     /// ```
     pub fn into_iter_row_major(self) -> impl Iterator<Item = Pos<T>> {
-        RowMajor::iter_pos(self)
+        RowMajor::positions(self)
     }
 
     /// Returns an iterator over the positions within the rectangle, in column-major order.
@@ -403,7 +420,7 @@ impl<T: Int> Rect<T> {
     /// assert_eq!(positions, &[Pos::new(1, 2), Pos::new(1, 3), Pos::new(2, 2), Pos::new(2, 3)]);
     /// ```
     pub fn into_iter_col_major(self) -> impl Iterator<Item = Pos<T>> {
-        ColMajor::iter_pos(self)
+        ColMajor::positions(self)
     }
 }
 

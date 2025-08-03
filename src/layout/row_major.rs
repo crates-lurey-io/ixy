@@ -1,0 +1,290 @@
+use core::iter::FusedIterator;
+
+use crate::{
+    Pos, Rect, Size,
+    int::Int,
+    layout::{LinearLayout, Traversal},
+};
+
+/// Left-to-right, top-to-bottom traversal order for 2D layouts.
+///
+/// ```txt
+/// 0 1 2 3
+/// 4 5 6 7
+/// 8 9 A B
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RowMajor;
+
+/// Iterator over positions in row-major order.
+pub struct IterPosRowMajor<T: Int> {
+    current: Pos<T>,
+    bounds: Rect<T>,
+}
+
+impl<T: Int> IterPosRowMajor<T> {
+    fn remaining_len(&self) -> usize {
+        let remaining_x = self.bounds.right() - self.current.x;
+        let remaining_y = self.bounds.bottom() - self.current.y;
+        remaining_x.to_usize() * remaining_y.to_usize()
+    }
+}
+
+impl<T: Int> Iterator for IterPosRowMajor<T> {
+    type Item = Pos<T>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current.y >= self.bounds.bottom() {
+            return None;
+        }
+        let pos = self.current;
+        self.current.x += T::ONE;
+
+        if self.current.x >= self.bounds.right() {
+            self.current.x = self.bounds.left();
+            self.current.y += T::ONE;
+        }
+
+        Some(pos)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.remaining_len();
+        (len, Some(len))
+    }
+}
+
+impl<T: Int> ExactSizeIterator for IterPosRowMajor<T> {
+    fn len(&self) -> usize {
+        self.remaining_len()
+    }
+}
+
+impl<T: Int> FusedIterator for IterPosRowMajor<T> {}
+
+/// Iterator over blocks in row-major order.
+pub struct IterBlockRowMajor<T: Int> {
+    current: Pos<T>,
+    bounds: Rect<T>,
+    size: Size,
+}
+
+impl<T: Int> IterBlockRowMajor<T> {
+    fn remaining_len(&self) -> usize {
+        let remaining_x = self.bounds.right() - self.current.x;
+        let remaining_y = self.bounds.bottom() - self.current.y;
+        (remaining_x.to_usize() / self.size.width)
+            .to_usize()
+            .saturating_mul(remaining_y.to_usize() / self.size.height)
+            .to_usize()
+    }
+}
+
+impl<T: Int> Iterator for IterBlockRowMajor<T> {
+    type Item = Rect<T>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let block = Rect::new(self.current, self.size);
+        self.current.x += T::from_usize(self.size.width);
+
+        if self.current.x >= self.bounds.right() {
+            self.current.x = self.bounds.left();
+            self.current.y += T::from_usize(self.size.height);
+        }
+
+        if block.bottom() > self.bounds.bottom() || block.right() > self.bounds.right() {
+            return None;
+        }
+
+        // Ensure the block is within bounds and matches the size.
+        #[cfg(test)]
+        {
+            debug_assert!(
+                self.bounds.contains_rect(block),
+                "Block {:?} is outside bounds {:?}",
+                block,
+                self.bounds
+            );
+            debug_assert!(
+                block.width() == self.size.width && block.height() == self.size.height,
+                "Block {:?} does not match size {:?}",
+                block,
+                self.size
+            );
+        }
+
+        Some(block)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.remaining_len();
+        (len, Some(len))
+    }
+}
+
+impl<T: Int> ExactSizeIterator for IterBlockRowMajor<T> {
+    fn len(&self) -> usize {
+        self.remaining_len()
+    }
+}
+
+impl<T: Int> FusedIterator for IterBlockRowMajor<T> {}
+
+impl Traversal for RowMajor {
+    type PosIter<'a, T: Int> = IterPosRowMajor<T>;
+    type BlockIter<'a, T: Int> = IterBlockRowMajor<T>;
+
+    /// Returns an iterator over the positions in the specified rectangle.
+    ///
+    /// The positions are returned in row-major order.
+    ///
+    /// ## Examples
+    ///
+    /// ```txt
+    /// (0, 0) (1, 0) (2, 0)
+    /// (0, 1) (1, 1) (2, 1)
+    /// ```
+    ///
+    /// ```rust
+    /// use ixy::{Pos, Rect, layout::{RowMajor, Traversal}};
+    ///
+    /// let rect = Rect::from_ltwh(0, 0, 3, 2);
+    /// let traversal = RowMajor;
+    /// let positions: Vec<_> = traversal.positions(&rect).collect();
+    /// assert_eq!(
+    ///     positions,
+    ///     &[
+    ///         Pos::new(0, 0),
+    ///         Pos::new(1, 0),
+    ///         Pos::new(2, 0),
+    ///         Pos::new(0, 1),
+    ///         Pos::new(1, 1),   
+    ///         Pos::new(2, 1),
+    ///     ]
+    /// );
+    /// ```
+    fn positions<T: Int>(&self, rect: Rect<T>) -> Self::PosIter<'_, T> {
+        let current = rect.top_left();
+        IterPosRowMajor {
+            current,
+            bounds: rect,
+        }
+    }
+
+    /// Returns an iterator over blocks of the specified size within the rectangle.
+    ///
+    /// Blocks that would be partially outside the rectangle are not yielded.
+    ///
+    /// ## Examples
+    ///
+    /// ```txt
+    /// [0, 0] [2, 0]
+    /// [0, 2] [2, 2]
+    /// ```
+    ///
+    /// ```rust
+    /// use ixy::{Rect, Size, layout::{RowMajor, Traversal}};
+    ///
+    /// let rect = Rect::from_ltwh(0, 0, 4, 4);
+    /// let traversal = RowMajor;
+    /// let size = Size::new(2, 2);
+    /// let blocks: Vec<_> = traversal.blocks(&rect, size).collect();
+    /// assert_eq!(
+    ///     blocks,
+    ///     &[
+    ///         Rect::from_ltwh(0, 0, 2, 2),
+    ///         Rect::from_ltwh(2, 0, 2, 2),
+    ///         Rect::from_ltwh(0, 2, 2, 2),
+    ///         Rect::from_ltwh(2, 2, 2, 2),
+    ///     ]
+    /// );
+    /// ```
+    fn blocks<T: Int>(&self, rect: Rect<T>, size: Size) -> Self::BlockIter<'_, T> {
+        let current = rect.top_left();
+        IterBlockRowMajor {
+            current,
+            bounds: rect,
+            size,
+        }
+    }
+}
+
+impl LinearLayout for RowMajor {
+    fn to_1d<T: Int>(&self, pos: Pos<T>, width: usize) -> usize {
+        pos.y.to_usize() * width + pos.x.to_usize()
+    }
+
+    fn to_2d<T: Int>(&self, index: usize, width: usize) -> Pos<T> {
+        let x = index % width;
+        let y = index / width;
+        Pos::new(T::from_usize(x), T::from_usize(y))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    extern crate alloc;
+
+    use super::*;
+    use alloc::vec::Vec;
+
+    #[test]
+    fn row_major_positions() {
+        let rect = Rect::from_ltwh(0, 0, 2, 2);
+        let traversal = RowMajor;
+        let positions: Vec<_> = traversal.positions(rect).collect();
+        assert_eq!(
+            positions,
+            &[
+                Pos::new(0, 0),
+                Pos::new(1, 0),
+                Pos::new(0, 1),
+                Pos::new(1, 1),
+            ]
+        );
+    }
+
+    #[test]
+    fn row_major_blocks_full() {
+        let rect = Rect::from_ltwh(0, 0, 4, 4);
+        let traversal = RowMajor;
+        let size = Size::new(2, 2);
+        let blocks: Vec<_> = traversal.blocks(rect, size).collect();
+        assert_eq!(
+            blocks,
+            &[
+                Rect::from_ltwh(0, 0, 2, 2),
+                Rect::from_ltwh(2, 0, 2, 2),
+                Rect::from_ltwh(0, 2, 2, 2),
+                Rect::from_ltwh(2, 2, 2, 2),
+            ]
+        );
+    }
+
+    #[test]
+    fn row_major_blocks_partial() {
+        let rect = Rect::from_ltwh(0, 0, 5, 3);
+        let traversal = RowMajor;
+        let size = Size::new(2, 2);
+        let blocks: Vec<_> = traversal.blocks(rect, size).collect();
+        assert_eq!(
+            blocks,
+            &[Rect::from_ltwh(0, 0, 2, 2), Rect::from_ltwh(2, 0, 2, 2),]
+        );
+    }
+
+    #[test]
+    fn row_major_to_1d() {
+        let traversal = RowMajor;
+        let pos = Pos::new(1, 2);
+        assert_eq!(traversal.to_1d(pos, 4), 9);
+    }
+
+    #[test]
+    fn row_major_to_2d() {
+        let traversal = RowMajor;
+        let index = 5;
+        let pos = traversal.to_2d(index, 4);
+        assert_eq!(pos, Pos::new(1, 1));
+    }
+}

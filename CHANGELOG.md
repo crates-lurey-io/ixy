@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - Unreleased
+
+### Added
+
+- `Block` layout, which stores data in continuous fixed-size (`W x H`) blocks
+
+### Changed
+
+- `AnyLayout` is now a non-exhaustive enum, and includes a `Block` variant
+- `Layout::iter_pos` was renamed `Layout::positions`
+
+### Removed
+
+- `index::IterPos` from the public API
+
 ## [0.5.7] - 2025-08-01
 
 ### Added

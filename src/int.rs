@@ -2,9 +2,13 @@
 //!
 //! These traits provides a common interface for working with integers generically.
 
-use core::ops::{
-    Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
-    Mul, MulAssign, Neg, Not, Rem, RemAssign, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
+use core::{
+    fmt::Debug,
+    ops::{
+        Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div,
+        DivAssign, Mul, MulAssign, Neg, Not, Rem, RemAssign, Shl, ShlAssign, Shr, ShrAssign, Sub,
+        SubAssign,
+    },
 };
 
 use crate::internal::Sealed;
@@ -20,6 +24,7 @@ use crate::internal::Sealed;
 #[allow(private_bounds)]
 pub trait Int:
     Sealed
+    + Debug
     + Sized
     + Copy
     + PartialEq

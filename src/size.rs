@@ -18,6 +18,12 @@ impl Size {
     pub const fn new(width: usize, height: usize) -> Self {
         Self { width, height }
     }
+
+    /// Returns the area of the size (width * height).
+    #[must_use]
+    pub const fn area(&self) -> usize {
+        self.width * self.height
+    }
 }
 
 impl Add for Size {
