@@ -1,4 +1,13 @@
 //! Maps 2-dimensional positions and provides traversal orders.
+//!
+//! Defines the [`Traversal`] trait for iterating over positions and rectangles in a 2D layout,
+//! with 3 built-in implementations:
+//!
+//! - [`RowMajor`] for row-major order
+//! - [`ColumnMajor`] for column-major order
+//! - [`Block`] for block-based traversal (where the inner blocks can themselves have a layout)
+//!
+//! In addition, the [`Linear`] trait provides mapping and iterating methods for linear data.
 
 use crate::{HasSize as _, Pos, Rect, Size, int::Int};
 
@@ -12,7 +21,7 @@ mod row_major;
 pub use row_major::RowMajor;
 
 /// Defines iterating orders for traversing a 2D layout.
-pub trait Layout {
+pub trait Traversal {
     /// Returns an iterator over the positions in the specified rectangle.
     ///
     /// The positions are returned in the order defined by the traversal.
@@ -24,8 +33,8 @@ pub trait Layout {
     fn rect_iter<T: Int>(&self, rect: Rect<T>, size: Size) -> impl Iterator<Item = Rect<T>>;
 }
 
-/// Defines iterating orders for traversing a 2D layout with linear access patterns.
-pub trait Linear: Layout {
+/// Defines mapping a 2D layout to a linear access patterns.
+pub trait Linear: Traversal {
     /// Given a 2-dimensional position and a width, returns the corresponding 1D index.
     fn to_1d<T: Int>(&self, pos: Pos<T>, width: usize) -> usize;
 

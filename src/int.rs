@@ -13,7 +13,7 @@ use core::{
 
 use crate::internal::Sealed;
 
-/// Generic trait for the built-in Rust integer types (e.g. `u8`, `u32`, `i64`, `isize`, ...).
+/// Generic trait for the built-in Rust integer types.
 ///
 /// Unlike traits provided by crates like `num_traits`, it is _sealed_.
 ///
@@ -147,7 +147,7 @@ pub trait Int:
     fn trailing_zeros(self) -> u32;
 }
 
-/// Generic trait for the built-in Rust signed integer types (e.g. `i8`, `i32`, `isize`, ...).
+/// Generic trait for the built-in Rust signed integer types.
 ///
 /// Unlike traits provided by crates like `num_traits`, it is _sealed_.
 ///

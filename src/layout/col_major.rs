@@ -3,7 +3,7 @@ use core::iter::FusedIterator;
 use crate::{
     Pos, Rect, Size,
     int::Int,
-    layout::{Layout, Linear},
+    layout::{Linear, Traversal},
 };
 
 /// Top-to-bottom, left-to-right traversal order for 2D layouts.
@@ -113,7 +113,7 @@ impl<T: Int> ExactSizeIterator for IterBlockColMajor<T> {
 
 impl<T: Int> FusedIterator for IterBlockColMajor<T> {}
 
-impl Layout for ColumnMajor {
+impl Traversal for ColumnMajor {
     /// Returns an iterator over the positions in the specified rectangle.
     ///
     /// The positions are returned in column-major order.
@@ -126,7 +126,7 @@ impl Layout for ColumnMajor {
     /// (2, 0) (2, 1)
     /// ```
     /// ```rust
-    /// use ixy::{Pos, Rect, layout::{ColumnMajor, Layout}};
+    /// use ixy::{Pos, Rect, layout::{ColumnMajor, Traversal}};
     /// let rect = Rect::from_ltwh(0, 0, 3, 2);
     /// let traversal = ColumnMajor;
     /// let positions: Vec<_> = traversal.pos_iter(rect).collect();
@@ -161,7 +161,7 @@ impl Layout for ColumnMajor {
     /// [2, 0] [2, 2]
     /// ```
     /// ```rust
-    /// use ixy::{Rect, Size, layout::{ColumnMajor, Layout}};
+    /// use ixy::{Rect, Size, layout::{ColumnMajor, Traversal}};
     /// let rect = Rect::from_ltwh(0, 0, 4, 4);
     /// let traversal = ColumnMajor;
     /// let size = Size::new(2, 2);

@@ -1,12 +1,12 @@
 //! Line operations.
 
+use core::iter::FusedIterator;
+
 use crate::{Pos, int::Int};
 
 /// Calculates positions along a line using a fast 2D vector algorithm.
 ///
-/// The resulting iterator is exclusive of the end position; use [`inclusive`][] to include it.
-///
-/// [`inclusive`]: VectorIter::inclusive
+/// The resulting iterator is _inclusive_ of the end position.
 ///
 /// Considered less "pixel-perfect" than Bresenham's line algorithm, but faster and simpler.
 ///
@@ -20,39 +20,25 @@ use crate::{Pos, int::Int};
 /// let mut iter = line::vector(start, end);
 /// assert_eq!(iter.next(), Some(Pos::new(0, 0)));
 /// assert_eq!(iter.next(), Some(Pos::new(1, 1)));
+/// assert_eq!(iter.next(), Some(Pos::new(2, 2)));
 /// assert_eq!(iter.next(), None);
 /// ```
-pub fn vector<T: Int>(start: Pos<T>, end: Pos<T>) -> VectorIter<T> {
+pub fn vector<T: Int>(start: Pos<T>, end: Pos<T>) -> impl Iterator<Item = Pos<T>> {
     let dxy = (end - start).normalized_approx();
     VectorIter {
         pos: start,
-        end,
+        end: end + dxy,
         dxy,
     }
 }
 
-pub struct VectorIter<T>
+struct VectorIter<T>
 where
     T: Int,
 {
     pos: Pos<T>,
     end: Pos<T>,
     dxy: Pos<T>,
-}
-
-impl<T> VectorIter<T>
-where
-    T: Int,
-{
-    /// Removes a single step from the iterator, making it inclusive of the end position.
-    #[must_use]
-    pub fn inclusive(self) -> Self {
-        Self {
-            pos: self.pos,
-            end: self.end + self.dxy,
-            dxy: self.dxy,
-        }
-    }
 }
 
 impl<T> Iterator for VectorIter<T>
@@ -70,7 +56,24 @@ where
             Some(current)
         }
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.len();
+        (len, Some(len))
+    }
 }
+
+impl<T> ExactSizeIterator for VectorIter<T>
+where
+    T: Int,
+{
+    fn len(&self) -> usize {
+        let remaining = self.end - self.pos;
+        remaining.x.abs().max(remaining.y.abs()).to_usize() + 1
+    }
+}
+
+impl<T> FusedIterator for VectorIter<T> where T: Int {}
 
 #[cfg(test)]
 mod tests {
@@ -94,19 +97,6 @@ mod tests {
         assert_eq!(iter.next(), Some(Pos::new(2, 0)));
         assert_eq!(iter.next(), Some(Pos::new(3, 0)));
         assert_eq!(iter.next(), Some(Pos::new(4, 0)));
-        assert_eq!(iter.next(), None);
-    }
-
-    #[test]
-    fn vector_iter_inclusive() {
-        let start = Pos::new(0, 0);
-        let end = Pos::new(5, 0);
-        let mut iter = vector(start, end).inclusive();
-        assert_eq!(iter.next(), Some(Pos::new(0, 0)));
-        assert_eq!(iter.next(), Some(Pos::new(1, 0)));
-        assert_eq!(iter.next(), Some(Pos::new(2, 0)));
-        assert_eq!(iter.next(), Some(Pos::new(3, 0)));
-        assert_eq!(iter.next(), Some(Pos::new(4, 0)));
         assert_eq!(iter.next(), Some(Pos::new(5, 0)));
         assert_eq!(iter.next(), None);
     }
@@ -121,6 +111,7 @@ mod tests {
         assert_eq!(iter.next(), Some(Pos::new(0, 2)));
         assert_eq!(iter.next(), Some(Pos::new(0, 3)));
         assert_eq!(iter.next(), Some(Pos::new(0, 4)));
+        assert_eq!(iter.next(), Some(Pos::new(0, 5)));
         assert_eq!(iter.next(), None);
     }
 
@@ -132,6 +123,7 @@ mod tests {
         assert_eq!(iter.next(), Some(Pos::new(0, 0)));
         assert_eq!(iter.next(), Some(Pos::new(1, 1)));
         assert_eq!(iter.next(), Some(Pos::new(2, 2)));
+        assert_eq!(iter.next(), Some(Pos::new(3, 3)));
         assert_eq!(iter.next(), None);
     }
 
@@ -143,6 +135,7 @@ mod tests {
         assert_eq!(iter.next(), Some(Pos::new(0, 0)));
         assert_eq!(iter.next(), Some(Pos::new(-1, -1)));
         assert_eq!(iter.next(), Some(Pos::new(-2, -2)));
+        assert_eq!(iter.next(), Some(Pos::new(-3, -3)));
         assert_eq!(iter.next(), None);
     }
 
@@ -153,6 +146,7 @@ mod tests {
         let mut iter = vector(start, end);
         assert_eq!(iter.next(), Some(Pos::new(0, 0)));
         assert_eq!(iter.next(), Some(Pos::new(3, 2)));
+        assert_eq!(iter.next(), Some(Pos::new(6, 4)));
         assert_eq!(iter.next(), None);
     }
 }

@@ -1,7 +1,7 @@
 use crate::{
     Pos, Rect, Size,
     int::Int,
-    layout::{ColumnMajor, Layout, Linear, RowMajor},
+    layout::{ColumnMajor, Linear, RowMajor, Traversal},
 };
 
 /// 2D space divided into blocks, each containing a grid of cells.
@@ -31,7 +31,7 @@ use crate::{
 /// ## Examples
 ///
 /// ```rust
-/// use ixy::{Pos, Rect, Size, layout::{Block, Layout}};
+/// use ixy::{Pos, Rect, Size, layout::{Block, Traversal}};
 ///
 /// let rect = Rect::from_ltwh(0, 0, 4, 4);
 /// let block = Block::row_major(2, 2);
@@ -138,7 +138,7 @@ impl<B: Copy, C: Copy> Block<B, C> {
     }
 }
 
-impl<G: Layout, C: Layout> Layout for Block<G, C> {
+impl<G: Traversal, C: Traversal> Traversal for Block<G, C> {
     /// Returns an iterator over the positions in the specified rectangle.
     ///
     /// The positions are returned in the order defined by the traversal.
@@ -154,7 +154,7 @@ impl<G: Layout, C: Layout> Layout for Block<G, C> {
     /// ```
     ///
     /// ```rust
-    /// use ixy::{Pos, Rect, Size, layout::{Block, Layout}};
+    /// use ixy::{Pos, Rect, Size, layout::{Block, Traversal}};
     ///
     /// let rect = Rect::from_ltwh(0, 0, 4, 4);
     /// let block = Block::row_major(2, 2);
@@ -223,7 +223,7 @@ impl<G: Layout, C: Layout> Layout for Block<G, C> {
     /// ```
     ///
     /// ```rust
-    /// use ixy::{Rect, Size, layout::{Block, Layout}};
+    /// use ixy::{Rect, Size, layout::{Block, Traversal}};
     ///
     /// let rect = Rect::from_ltwh(0, 0, 8, 8);
     /// let outer_block = Block::row_major(4, 4);
@@ -266,7 +266,7 @@ impl<G: Layout, C: Layout> Layout for Block<G, C> {
     }
 }
 
-impl<G: Layout, C: Layout> Linear for Block<G, C>
+impl<G: Traversal, C: Traversal> Linear for Block<G, C>
 where
     G: Linear,
     C: Linear,
