@@ -36,7 +36,7 @@ pub trait Traversal {
     /// The blocks are returned in the order defined by the traversal.
     ///
     /// Blocks that would be partially outside the rectangle are not yielded.
-    fn iter_block<T: Int>(&self, rect: Rect<T>, size: Size) -> impl Iterator<Item = Rect<T>>;
+    fn iter_rect<T: Int>(&self, rect: Rect<T>, size: Size) -> impl Iterator<Item = Rect<T>>;
 }
 
 /// Defines mapping a 2D layout to a linear access patterns.

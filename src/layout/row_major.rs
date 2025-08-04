@@ -118,7 +118,7 @@ impl Traversal for RowMajor {
     ///
     /// let rect = Rect::from_ltwh(0, 0, 3, 2);
     /// let traversal = RowMajor;
-    /// let positions: Vec<_> = traversal.pos_iter(rect).collect();
+    /// let positions: Vec<_> = traversal.iter_pos(rect).collect();
     /// assert_eq!(
     ///     positions,
     ///     &[
@@ -156,7 +156,7 @@ impl Traversal for RowMajor {
     /// let rect = Rect::from_ltwh(0, 0, 4, 4);
     /// let traversal = RowMajor;
     /// let size = Size::new(2, 2);
-    /// let blocks: Vec<_> = traversal.rect_iter(rect, size).collect();
+    /// let blocks: Vec<_> = traversal.iter_rect(rect, size).collect();
     /// assert_eq!(
     ///     blocks,
     ///     &[
@@ -167,7 +167,7 @@ impl Traversal for RowMajor {
     ///     ]
     /// );
     /// ```
-    fn iter_block<T: Int>(&self, rect: Rect<T>, size: Size) -> impl Iterator<Item = Rect<T>> {
+    fn iter_rect<T: Int>(&self, rect: Rect<T>, size: Size) -> impl Iterator<Item = Rect<T>> {
         let current = rect.top_left();
         IterBlockRowMajor {
             current,
@@ -288,7 +288,7 @@ mod tests {
         let rect = Rect::from_ltwh(0, 0, 4, 4);
         let traversal = RowMajor;
         let size = Size::new(2, 2);
-        let blocks: Vec<_> = traversal.iter_block(rect, size).collect();
+        let blocks: Vec<_> = traversal.iter_rect(rect, size).collect();
         assert_eq!(
             blocks,
             &[
@@ -305,7 +305,7 @@ mod tests {
         let rect = Rect::from_ltwh(0, 0, 5, 3);
         let traversal = RowMajor;
         let size = Size::new(2, 2);
-        let blocks: Vec<_> = traversal.iter_block(rect, size).collect();
+        let blocks: Vec<_> = traversal.iter_rect(rect, size).collect();
         assert_eq!(
             blocks,
             &[Rect::from_ltwh(0, 0, 2, 2), Rect::from_ltwh(2, 0, 2, 2),]

@@ -37,7 +37,7 @@ use crate::{
 ///
 /// let rect = Rect::from_ltwh(0, 0, 4, 4);
 /// let block = Block::row_major(2, 2);
-/// let cells: Vec<_> = block.pos_iter(rect).collect();
+/// let cells: Vec<_> = block.iter_pos(rect).collect();
 /// assert_eq!(
 ///    cells,
 ///    &[
@@ -160,7 +160,7 @@ impl<G: Traversal, C: Traversal> Traversal for Block<G, C> {
     ///
     /// let rect = Rect::from_ltwh(0, 0, 4, 4);
     /// let block = Block::row_major(2, 2);
-    /// let positions: Vec<_> = block.pos_iter(rect).collect();
+    /// let positions: Vec<_> = block.iter_pos(rect).collect();
     /// assert_eq!(
     ///    positions,
     ///    &[
@@ -192,7 +192,7 @@ impl<G: Traversal, C: Traversal> Traversal for Block<G, C> {
     /// ```
     fn iter_pos<T: Int>(&self, rect: Rect<T>) -> impl Iterator<Item = Pos<T>> {
         self.grid
-            .iter_block(rect, self.size)
+            .iter_rect(rect, self.size)
             .flat_map(move |block_rect| self.cell.iter_pos(block_rect))
     }
 
@@ -230,8 +230,7 @@ impl<G: Traversal, C: Traversal> Traversal for Block<G, C> {
     /// let rect = Rect::from_ltwh(0, 0, 8, 8);
     /// let outer_block = Block::row_major(4, 4);
     /// let inner_block = Size::new(2, 2);
-    /// let blocks: Vec<_> = outer_block.rect_iter(rect, inner_block).collect();
-    ///
+    /// let blocks: Vec<_> = outer_block.iter_rect(rect, inner_block).collect();
     /// assert_eq!(
     ///   blocks,
     ///   &[
@@ -261,10 +260,10 @@ impl<G: Traversal, C: Traversal> Traversal for Block<G, C> {
     ///   ]
     /// );
     /// ```
-    fn iter_block<T: Int>(&self, rect: Rect<T>, size: Size) -> impl Iterator<Item = Rect<T>> {
+    fn iter_rect<T: Int>(&self, rect: Rect<T>, size: Size) -> impl Iterator<Item = Rect<T>> {
         self.grid
-            .iter_block(rect, self.size)
-            .flat_map(move |block_rect| self.cell.iter_block(block_rect, size))
+            .iter_rect(rect, self.size)
+            .flat_map(move |block_rect| self.cell.iter_rect(block_rect, size))
     }
 }
 
@@ -414,7 +413,7 @@ mod tests {
         let rect = Rect::from_ltwh(0, 0, 16, 16);
         let block = Block::row_major(4, 4);
         let size = Size::new(2, 2);
-        let blocks: Vec<_> = block.iter_block(rect, size).collect();
+        let blocks: Vec<_> = block.iter_rect(rect, size).collect();
         assert_eq!(
             blocks,
             &[
