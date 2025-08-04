@@ -1,3 +1,5 @@
+use core::ops::Range;
+
 use crate::{
     Pos, Rect, Size,
     int::Int,
@@ -300,6 +302,53 @@ where
 
     fn len_aligned(&self, size: Size) -> usize {
         self.grid.len_aligned(size)
+    }
+
+    fn rect_to_range(&self, grid_size: Size, rect: Rect<usize>) -> Option<Range<usize>> {
+        // Must be either:
+        // - Elements entirely within a single block
+        // - Elements spanning multiple blocks but full-sized
+        let block_size = self.size;
+
+        // Check if the rectangle is aligned to the block size
+        if rect.width() % block_size.width != 0 || rect.height() % block_size.height != 0 {
+            return None;
+        }
+
+        // Calculate the start and end indices based on the block layout
+        let start = self.pos_to_index(rect.top_left(), grid_size.width);
+        let end = self.pos_to_index(rect.bottom_right() - Pos::new(1, 1), grid_size.width) + 1;
+        if end > grid_size.width * grid_size.height {
+            return None;
+        }
+
+        Some(start..end)
+    }
+
+    fn slice_rect_aligned<'a, E>(
+        &self,
+        slice: &'a [E],
+        size: Size,
+        rect: Rect<usize>,
+    ) -> Option<&'a [E]> {
+        let range = self.rect_to_range(size, rect)?;
+        if range.end > slice.len() {
+            return None;
+        }
+        Some(&slice[range])
+    }
+
+    fn slice_rect_aligned_mut<'a, E>(
+        &self,
+        slice: &'a mut [E],
+        size: Size,
+        rect: Rect<usize>,
+    ) -> Option<&'a mut [E]> {
+        let range = self.rect_to_range(size, rect)?;
+        if range.end > slice.len() {
+            return None;
+        }
+        Some(&mut slice[range])
     }
 
     fn slice_aligned<'a, E>(&self, slice: &'a [E], size: Size, axis: usize) -> &'a [E] {
@@ -614,6 +663,19 @@ mod tests {
     }
 
     #[test]
+    fn test_pos_to_index() {
+        let block = Block::row_major(2, 2);
+        assert_eq!(block.pos_to_index(Pos::new(0, 0), 4), 0);
+        assert_eq!(block.pos_to_index(Pos::new(1, 0), 4), 1);
+        assert_eq!(block.pos_to_index(Pos::new(0, 1), 4), 2);
+        assert_eq!(block.pos_to_index(Pos::new(1, 1), 4), 3);
+        assert_eq!(block.pos_to_index(Pos::new(2, 0), 4), 4);
+        assert_eq!(block.pos_to_index(Pos::new(3, 0), 4), 5);
+        assert_eq!(block.pos_to_index(Pos::new(2, 1), 4), 6);
+        assert_eq!(block.pos_to_index(Pos::new(3, 1), 4), 7);
+    }
+
+    #[test]
     fn test_block_row_major_to_2d() {
         // 0 1 | 4 5
         // 2 3 | 6 7
@@ -687,5 +749,85 @@ mod tests {
         let block = Block::row_major(2, 2);
         let size = Size::new(4, 2);
         assert_eq!(block.slice_aligned(slice, size, 2), &[]);
+    }
+
+    #[test]
+    fn slice_rect_aligned_full() {
+        #[rustfmt::skip]
+        let slice = &[
+            0, 1, 2, 3,
+            4, 5, 6, 7,
+        ];
+        let block = Block::row_major(2, 2);
+        let size = Size::new(4, 2);
+        assert_eq!(
+            block.slice_rect_aligned(slice, size, Rect::from_ltwh(0, 0, 4, 2)),
+            Some(&[0, 1, 2, 3, 4, 5, 6, 7][..])
+        );
+    }
+
+    #[test]
+    fn slice_rect_aligned_partial() {
+        #[rustfmt::skip]
+        let slice = &[
+            0, 1, 2, 3,
+            4, 5, 6, 7,
+        ];
+        let block = Block::row_major(2, 2);
+        let size = Size::new(4, 2);
+        assert_eq!(
+            block.slice_rect_aligned(slice, size, Rect::from_ltwh(0, 0, 2, 2)),
+            Some(&[0, 1, 2, 3][..])
+        );
+        assert_eq!(
+            block.slice_rect_aligned(slice, size, Rect::from_ltwh(2, 0, 2, 2)),
+            Some(&[4, 5, 6, 7][..])
+        );
+    }
+
+    #[test]
+    fn slice_rect_aligned_out_of_bounds() {
+        #[rustfmt::skip]
+        let slice = &[
+            0, 1, 2, 3,
+            4, 5, 6, 7,
+        ];
+        let block = Block::row_major(2, 2);
+        let size = Size::new(4, 2);
+        assert_eq!(
+            block.slice_rect_aligned(slice, size, Rect::from_ltwh(0, 0, 5, 2)),
+            None
+        );
+    }
+
+    #[test]
+    fn slice_rect_unaligned_partial() {
+        #[rustfmt::skip]
+        let slice = &mut [
+            0, 1, 2, 3,
+            4, 5, 6, 7,
+        ];
+        let size = Size::new(4, 2);
+        let block = Block::row_major(2, 2);
+        let rect = Rect::from_ltwh(0, 1, 1, 2);
+        assert_eq!(
+            block.slice_rect_aligned_mut(slice, size, rect),
+            None
+        );
+    }
+
+    #[test]
+    fn slice_rect_aligned_mut_full() {
+        #[rustfmt::skip]
+        let slice = &mut [
+            0, 1, 2, 3,
+            4, 5, 6, 7,
+        ];      
+        let block = Block::row_major(2, 2);
+        let size = Size::new(4, 2);
+        assert_eq!(
+            block.slice_rect_aligned_mut(slice, size, Rect::from_ltwh(0, 0, 4, 2)),
+            Some(&mut [0, 1, 2, 3, 4, 5, 6, 7][..])
+        );
     }
 }

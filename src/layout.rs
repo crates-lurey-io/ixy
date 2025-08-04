@@ -9,6 +9,8 @@
 //!
 //! In addition, the [`Linear`] trait provides mapping and iterating methods for linear data.
 
+use core::ops::Range;
+
 use crate::{Pos, Rect, Size, int::Int};
 
 mod block;
@@ -52,6 +54,34 @@ pub trait Linear: Traversal {
     /// This is the maximum value that can be provided as `axis` to `slice_aligned`.
     #[must_use]
     fn len_aligned(&self, size: Size) -> usize;
+
+    /// Returns a range of indices for the rectangle defined by the layout.
+    ///
+    /// The range is inclusive of the start and exclusive of the end.
+    ///
+    /// If the rectangle is not aligned to the current data, the range will be `None`.
+    #[must_use]
+    fn rect_to_range(&self, size: Size, rect: Rect<usize>) -> Option<Range<usize>>;
+
+    /// Returns a slice of the given slice for the rectangle defined by the layout.
+    ///
+    /// If the rectangle is not aligned to the current data, the slice will be `None`.
+    fn slice_rect_aligned<'a, E>(
+        &self,
+        slice: &'a [E],
+        size: Size,
+        rect: Rect<usize>,
+    ) -> Option<&'a [E]>;
+
+    /// Returns a mutable slice of the given slice for the rectangle defined by the layout.
+    ///
+    /// If the rectangle is not aligned to the current data, the slice will be `None`.
+    fn slice_rect_aligned_mut<'a, E>(
+        &self,
+        slice: &'a mut [E],
+        size: Size,
+        rect: Rect<usize>,
+    ) -> Option<&'a mut [E]>;
 
     /// Returns a slice of the given slice for the axis defined by the layout.
     ///

@@ -204,6 +204,45 @@ impl Linear for RowMajor {
         size.height
     }
 
+    fn rect_to_range(&self, size: Size, rect: Rect<usize>) -> Option<Range<usize>> {
+        // Must be either:
+        // - Elements entirely within a single row (height = 1)
+        // - Elements spanning multiple rows but full-width
+        if rect.height() != 1 && rect.width() != size.width {
+            return None;
+        }
+
+        let start = rect.top_left().y * size.width + rect.top_left().x;
+        let end = start + rect.width() * rect.height();
+        Some(start..end)
+    }
+
+    fn slice_rect_aligned<'a, E>(
+        &self,
+        slice: &'a [E],
+        size: Size,
+        rect: Rect<usize>,
+    ) -> Option<&'a [E]> {
+        let range = self.rect_to_range(size, rect)?;
+        if range.end > slice.len() {
+            return None;
+        }
+        Some(&slice[range])
+    }
+
+    fn slice_rect_aligned_mut<'a, E>(
+        &self,
+        slice: &'a mut [E],
+        size: Size,
+        rect: Rect<usize>,
+    ) -> Option<&'a mut [E]> {
+        let range = self.rect_to_range(size, rect)?;
+        if range.end > slice.len() {
+            return None;
+        }
+        Some(&mut slice[range])
+    }
+
     fn slice_aligned<'a, E>(&self, slice: &'a [E], size: Size, axis: usize) -> &'a [E] {
         if axis >= self.len_aligned(size) {
             return &[];
@@ -328,5 +367,74 @@ mod tests {
         ];
         let size = Size::new(4, 2);
         assert_eq!(RowMajor.slice_aligned(&slice, size, 2), &[]);
+    }
+
+    #[test]
+    fn slice_rect_aligned_full() {
+        #[rustfmt::skip]
+        let slice = &[
+            0, 1, 2, 3,
+            4, 5, 6, 7,
+        ];
+        let size = Size::new(4, 2);
+        let rect = Rect::from_ltwh(0, 0, 4, 2);
+        assert_eq!(
+            RowMajor.slice_rect_aligned(slice, size, rect),
+            Some(&[0, 1, 2, 3, 4, 5, 6, 7][..])
+        );
+    }
+
+    #[test]
+    fn slice_rect_aligned_partial() {
+        #[rustfmt::skip]
+        let slice = &[
+            0, 1, 2, 3,
+            4, 5, 6, 7,
+        ];
+        let size = Size::new(4, 2);
+        let rect = Rect::from_ltwh(0, 0, 4, 1);
+        assert_eq!(
+            RowMajor.slice_rect_aligned(slice, size, rect),
+            Some(&[0, 1, 2, 3][..])
+        );
+    }
+
+    #[test]
+    fn slice_rect_aligned_out_of_bounds() {
+        #[rustfmt::skip]
+        let slice = &[
+            0, 1, 2, 3,
+            4, 5, 6, 7,
+        ];
+        let size = Size::new(4, 2);
+        let rect = Rect::from_ltwh(0, 0, 4, 3);
+        assert_eq!(RowMajor.slice_rect_aligned(slice, size, rect), None);
+    }
+
+    #[test]
+    fn slice_rect_unaligned() {
+        #[rustfmt::skip]
+        let slice = &[
+            0, 1, 2, 3,
+            4, 5, 6, 7,
+        ];
+        let size = Size::new(4, 2);
+        let rect = Rect::from_ltwh(0, 0, 3, 2);
+        assert_eq!(RowMajor.slice_rect_aligned(slice, size, rect), None);
+    }
+
+    #[test]
+    fn slice_rect_aligned_mut_full() {
+        #[rustfmt::skip]
+        let slice = &mut [
+            0, 1, 2, 3,
+            4, 5, 6, 7,
+        ];
+        let size = Size::new(4, 2);
+        let rect = Rect::from_ltwh(0, 0, 4, 2);
+        assert_eq!(
+            RowMajor.slice_rect_aligned_mut(slice, size, rect),
+            Some(&mut [0, 1, 2, 3, 4, 5, 6, 7][..])
+        );
     }
 }
