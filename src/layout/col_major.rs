@@ -21,15 +21,6 @@ struct IterPosColMajor<T: Int> {
     current: Pos<T>,
     bounds: Rect<T>,
 }
-
-impl<T: Int> IterPosColMajor<T> {
-    fn remaining_len(&self) -> usize {
-        let remaining_x = self.bounds.right() - self.current.x;
-        let remaining_y = self.bounds.bottom() - self.current.y;
-        remaining_x.to_usize() * remaining_y.to_usize()
-    }
-}
-
 impl<T: Int> Iterator for IterPosColMajor<T> {
     type Item = Pos<T>;
 
@@ -49,14 +40,16 @@ impl<T: Int> Iterator for IterPosColMajor<T> {
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let len = self.remaining_len();
+        let len = self.len();
         (len, Some(len))
     }
 }
 
 impl<T: Int> ExactSizeIterator for IterPosColMajor<T> {
     fn len(&self) -> usize {
-        self.remaining_len()
+        let remaining_x = self.bounds.right() - self.current.x;
+        let remaining_y = self.bounds.bottom() - self.current.y;
+        remaining_x.to_usize() * remaining_y.to_usize()
     }
 }
 
@@ -67,14 +60,6 @@ struct IterBlockColMajor<T: Int> {
     current: Pos<T>,
     bounds: Rect<T>,
     size: Size,
-}
-
-impl<T: Int> IterBlockColMajor<T> {
-    fn remaining_len(&self) -> usize {
-        let remaining_x = self.bounds.right() - self.current.x;
-        let remaining_y = self.bounds.bottom() - self.current.y;
-        (remaining_x.to_usize() / self.size.width) * (remaining_y.to_usize() / self.size.height)
-    }
 }
 
 impl<T: Int> Iterator for IterBlockColMajor<T> {
@@ -100,14 +85,16 @@ impl<T: Int> Iterator for IterBlockColMajor<T> {
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let len = self.remaining_len();
+        let len = self.len();
         (len, Some(len))
     }
 }
 
 impl<T: Int> ExactSizeIterator for IterBlockColMajor<T> {
     fn len(&self) -> usize {
-        self.remaining_len()
+        let remaining_x = self.bounds.right() - self.current.x;
+        let remaining_y = self.bounds.bottom() - self.current.y;
+        (remaining_x.to_usize() / self.size.width) * (remaining_y.to_usize() / self.size.height)
     }
 }
 
@@ -291,5 +278,32 @@ mod tests {
         assert_eq!(ColumnMajor.to_2d(1, 2), Pos::new(0, 1));
         assert_eq!(ColumnMajor.to_2d(2, 2), Pos::new(1, 0));
         assert_eq!(ColumnMajor.to_2d(3, 2), Pos::new(1, 1));
+    }
+
+    #[test]
+    fn column_major_iter_rect_from_slice() {
+        let traversal = ColumnMajor;
+        let rect = Rect::from_ltwh(0, 0, 3, 2);
+        let size = Size::new(3, 2);
+        let data: Vec<i32> = (0..6).collect(); // 3x2 grid
+        let iter: Vec<_> = traversal.iter_rect(rect, size, &data).collect();
+        assert_eq!(iter, &[&0, &1, &2, &3, &4, &5]);
+    }
+
+    #[test]
+    fn column_major_exact_size_iter_pos_len() {
+        let rect = Rect::from_ltwh(0, 0, 3, 2);
+        let traversal = ColumnMajor;
+        let iter: Vec<_> = traversal.pos_iter(rect).collect();
+        assert_eq!(iter.len(), 6);
+    }
+
+    #[test]
+    fn column_major_exact_size_iter_block_len() {
+        let rect = Rect::from_ltwh(0, 0, 4, 4);
+        let traversal = ColumnMajor;
+        let size = Size::new(2, 2);
+        let iter: Vec<_> = traversal.rect_iter(rect, size).collect();
+        assert_eq!(iter.len(), 4);
     }
 }

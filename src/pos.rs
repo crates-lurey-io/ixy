@@ -756,6 +756,21 @@ mod tests {
     }
 
     #[test]
+    fn sub_pos() {
+        let p1 = Pos::new(3, 4);
+        let p2 = Pos::new(1, 2);
+        assert_eq!(p1 - p2, Pos::new(2, 2));
+    }
+
+    #[test]
+    fn sub_assign_pos() {
+        let mut p1 = Pos::new(3, 4);
+        let p2 = Pos::new(1, 2);
+        p1 -= p2;
+        assert_eq!(p1, Pos::new(2, 2));
+    }
+
+    #[test]
     fn into_size() {
         let pos = Pos::new(3, 4);
         let size = Size::try_from(pos).unwrap();

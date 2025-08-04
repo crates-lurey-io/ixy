@@ -274,4 +274,10 @@ mod tests {
         size /= 2;
         assert_eq!(size, Size::new(5, 10));
     }
+
+    #[test]
+    fn size_area() {
+        let size = Size::new(10, 20);
+        assert_eq!(size.area(), 200);
+    }
 }

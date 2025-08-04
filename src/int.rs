@@ -328,4 +328,24 @@ mod tests {
         assert_eq!(value.checked_to_usize(), None);
         assert_eq!(value.saturating_to_usize(), usize::MAX);
     }
+
+    #[test]
+    fn unsigned_int_abs() {
+        assert_eq!(1u8.abs(), 1);
+        assert_eq!(1u16.abs(), 1);
+        assert_eq!(1u32.abs(), 1);
+        assert_eq!(1u64.abs(), 1);
+        assert_eq!(1u128.abs(), 1);
+        assert_eq!(1usize.abs(), 1);
+    }
+
+    #[test]
+    fn unsigned_int_trailing_zeros() {
+        assert_eq!(Int::trailing_zeros(4u8), 2);
+        assert_eq!(Int::trailing_zeros(4u16), 2);
+        assert_eq!(Int::trailing_zeros(4u32), 2);
+        assert_eq!(Int::trailing_zeros(4u64), 2);
+        assert_eq!(Int::trailing_zeros(4u128), 2);
+        assert_eq!(Int::trailing_zeros(4usize), 2);
+    }
 }

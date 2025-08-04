@@ -68,8 +68,12 @@ where
     T: Int,
 {
     fn len(&self) -> usize {
-        let remaining = self.end - self.pos;
-        remaining.x.abs().max(remaining.y.abs()).to_usize() + 1
+        if self.pos == self.end {
+            0
+        } else {
+            let remaining = self.end - self.pos;
+            remaining.x.abs().max(remaining.y.abs()).to_usize()
+        }
     }
 }
 
@@ -147,6 +151,23 @@ mod tests {
         assert_eq!(iter.next(), Some(Pos::new(0, 0)));
         assert_eq!(iter.next(), Some(Pos::new(3, 2)));
         assert_eq!(iter.next(), Some(Pos::new(6, 4)));
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn vector_iter_size_hint() {
+        let start = Pos::new(0, 0);
+        let end = Pos::new(3, 3);
+        let mut iter = vector(start, end);
+        assert_eq!(iter.size_hint(), (4, Some(4)));
+        assert_eq!(iter.next(), Some(Pos::new(0, 0)));
+        assert_eq!(iter.size_hint(), (3, Some(3)));
+        assert_eq!(iter.next(), Some(Pos::new(1, 1)));
+        assert_eq!(iter.size_hint(), (2, Some(2)));
+        assert_eq!(iter.next(), Some(Pos::new(2, 2)));
+        assert_eq!(iter.size_hint(), (1, Some(1)));
+        assert_eq!(iter.next(), Some(Pos::new(3, 3)));
+        assert_eq!(iter.size_hint(), (0, Some(0)));
         assert_eq!(iter.next(), None);
     }
 }

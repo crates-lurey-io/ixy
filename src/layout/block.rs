@@ -331,7 +331,7 @@ mod tests {
     extern crate alloc;
 
     use super::*;
-    use alloc::vec::Vec;
+    use alloc::{vec, vec::Vec};
 
     #[test]
     fn test_block_row_major_blocks_row_major_cells_positions() {
@@ -641,5 +641,45 @@ mod tests {
             .collect();
         let actual: Vec<_> = (0..16).map(|i| block.to_2d::<i32>(i, 4)).collect();
         assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn block_new() {
+        let block = Block::new(3, 4, RowMajor, ColumnMajor);
+        assert_eq!(block.size.width, 3);
+        assert_eq!(block.size.height, 4);
+        assert_eq!(block.grid, RowMajor);
+        assert_eq!(block.cell, ColumnMajor);
+    }
+
+    #[test]
+    fn block_with_grid() {
+        let block = Block::row_major(2, 2).with_grid(ColumnMajor);
+        assert_eq!(block.size.width, 2);
+        assert_eq!(block.size.height, 2);
+        assert_eq!(block.grid, ColumnMajor);
+        assert_eq!(block.cell, RowMajor);
+    }
+
+    #[test]
+    #[should_panic(expected = "Data length does not match the area of the size")]
+    fn block_iter_rect_unchecked_panic_data_length_mismatch() {
+        let block = Block::row_major(2, 2);
+        let rect = Rect::from_ltwh(0, 0, 4, 4);
+        let size = Size::new(2, 2);
+        let data = vec![0; 3]; // Incorrect length
+        let _iter = unsafe { block.iter_rect_unchecked::<usize, _>(rect, size, &data) };
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Rectangle Rect { l: 0, t: 0, r: 5, b: 5 } is out of bounds for size Size { width: 2, height: 2 }"
+    )]
+    fn block_iter_rect_unchecked_panic_out_of_bounds() {
+        let block = Block::row_major(2, 2);
+        let rect = Rect::from_ltwh(0, 0, 5, 5); // Out of bounds for size 2x2
+        let size = Size::new(2, 2);
+        let data = vec![0; 4]; // Correct length
+        let _iter = unsafe { block.iter_rect_unchecked::<usize, _>(rect, size, &data) };
     }
 }
