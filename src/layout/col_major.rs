@@ -1,4 +1,4 @@
-use core::iter::FusedIterator;
+use core::{iter::FusedIterator, ops::Range};
 
 use crate::{
     Pos, Rect, Size,
@@ -173,6 +173,18 @@ impl Traversal for ColumnMajor {
     }
 }
 
+impl ColumnMajor {
+    const fn axis_to_range<E>(slice: &[E], size: Size, axis: usize) -> Range<usize> {
+        assert!(
+            slice.len() % size.area() == 0,
+            "slice length must be a multiple of size.width * size.height"
+        );
+        let start = axis * size.height;
+        let end = start + size.height;
+        start..end
+    }
+}
+
 impl Linear for ColumnMajor {
     fn pos_to_index(&self, pos: Pos<usize>, width: usize) -> usize {
         pos.x * width + pos.y
@@ -182,6 +194,26 @@ impl Linear for ColumnMajor {
         let x = index / width;
         let y = index % width;
         Pos::new(x, y)
+    }
+
+    fn len_aligned(&self, size: Size) -> usize {
+        size.width
+    }
+
+    fn slice_aligned<'a, E>(&self, slice: &'a [E], size: Size, axis: usize) -> &'a [E] {
+        if axis >= size.width {
+            return &[];
+        }
+        let range = Self::axis_to_range(slice, size, axis);
+        &slice[range]
+    }
+
+    fn slice_aligned_mut<'a, E>(&self, slice: &'a mut [E], size: Size, axis: usize) -> &'a mut [E] {
+        if axis >= size.width {
+            return &mut [];
+        }
+        let range = Self::axis_to_range(slice, size, axis);
+        &mut slice[range]
     }
 }
 
@@ -232,5 +264,28 @@ mod tests {
         let traversal = ColumnMajor;
         let iter: Vec<_> = traversal.iter_pos(rect).collect();
         assert_eq!(iter.len(), 6);
+    }
+
+    #[test]
+    fn slice_aligned_in_bounds() {
+        #[rustfmt::skip]
+        let slice = &[
+            1, 2, 3,
+            4, 5, 6
+        ];
+        let size = Size::new(2, 3);
+        assert_eq!(ColumnMajor.slice_aligned(slice, size, 0), &[1, 2, 3]);
+        assert_eq!(ColumnMajor.slice_aligned(slice, size, 1), &[4, 5, 6]);
+    }
+
+    #[test]
+    fn slice_aligned_out_of_bounds() {
+        #[rustfmt::skip]
+        let slice = &[
+            1, 2, 3,
+            4, 5, 6
+        ];
+        let size = Size::new(2, 3);
+        assert_eq!(ColumnMajor.slice_aligned(slice, size, 2), &[]);
     }
 }

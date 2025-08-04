@@ -1,4 +1,4 @@
-use core::iter::FusedIterator;
+use core::{iter::FusedIterator, ops::Range};
 
 use crate::{
     Pos, Rect, Size,
@@ -177,6 +177,18 @@ impl Traversal for RowMajor {
     }
 }
 
+impl RowMajor {
+    const fn axis_to_range<E>(slice: &[E], size: Size, axis: usize) -> Range<usize> {
+        assert!(
+            slice.len() % size.area() == 0,
+            "slice length must be a multiple of size.width * size.height"
+        );
+        let start = axis * size.width;
+        let end = start + size.width;
+        start..end
+    }
+}
+
 impl Linear for RowMajor {
     fn pos_to_index(&self, pos: Pos<usize>, width: usize) -> usize {
         pos.y * width + pos.x
@@ -186,6 +198,26 @@ impl Linear for RowMajor {
         let x = index % width;
         let y = index / width;
         Pos::new(x, y)
+    }
+
+    fn len_aligned(&self, size: Size) -> usize {
+        size.height
+    }
+
+    fn slice_aligned<'a, E>(&self, slice: &'a [E], size: Size, axis: usize) -> &'a [E] {
+        if axis >= self.len_aligned(size) {
+            return &[];
+        }
+        let range = Self::axis_to_range(slice, size, axis);
+        &slice[range]
+    }
+
+    fn slice_aligned_mut<'a, E>(&self, slice: &'a mut [E], size: Size, axis: usize) -> &'a mut [E] {
+        if axis >= self.len_aligned(size) {
+            return &mut [];
+        }
+        let range = Self::axis_to_range(slice, size, axis);
+        &mut slice[range]
     }
 }
 
@@ -255,5 +287,28 @@ mod tests {
         assert_eq!(RowMajor.index_to_pos(1, 2), Pos::new(1, 0));
         assert_eq!(RowMajor.index_to_pos(2, 2), Pos::new(0, 1));
         assert_eq!(RowMajor.index_to_pos(3, 2), Pos::new(1, 1));
+    }
+
+    #[test]
+    fn slice_aligned_in_bounds() {
+        #[rustfmt::skip]
+        let slice = [
+            0, 1, 2, 3, 
+            4, 5, 6, 7,
+        ];
+        let size = Size::new(4, 2);
+        assert_eq!(RowMajor.slice_aligned(&slice, size, 0), &[0, 1, 2, 3]);
+        assert_eq!(RowMajor.slice_aligned(&slice, size, 1), &[4, 5, 6, 7]);
+    }
+
+    #[test]
+    fn slice_aligned_out_of_bounds() {
+        #[rustfmt::skip]
+        let slice = [
+            0, 1, 2, 3, 
+            4, 5, 6, 7,
+        ];
+        let size = Size::new(4, 2);
+        assert_eq!(RowMajor.slice_aligned(&slice, size, 2), &[]);
     }
 }

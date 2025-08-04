@@ -38,7 +38,7 @@ pub trait Traversal {
 }
 
 /// Defines mapping a 2D layout to a linear access patterns.
-pub trait Linear {
+pub trait Linear: Traversal {
     /// Translates a 2D position to a linear index for the current layout.
     #[must_use]
     fn pos_to_index(&self, pos: Pos<usize>, width: usize) -> usize;
@@ -46,4 +46,30 @@ pub trait Linear {
     /// Translates a linear index to a 2D position for the current layout.
     #[must_use]
     fn index_to_pos(&self, index: usize, width: usize) -> Pos<usize>;
+
+    /// Returns the length of the linear data for the given size and axis.
+    ///
+    /// This is the maximum value that can be provided as `axis` to `slice_aligned`.
+    #[must_use]
+    fn len_aligned(&self, size: Size) -> usize;
+
+    /// Returns a slice of the given slice for the axis defined by the layout.
+    ///
+    /// If the axis is not present in the data, the slice will be empty.
+    ///
+    /// ## Panics
+    ///
+    /// If `slice.len()` is not a multiple of `size.width * size.height`, this method will panic.
+    #[must_use]
+    fn slice_aligned<'a, E>(&self, slice: &'a [E], size: Size, axis: usize) -> &'a [E];
+
+    /// Returns a mutable slice of the given slice for the axis defined by the layout.
+    ///
+    /// If the axis is not present in the data, the slice will be empty.
+    ///
+    /// ## Panics
+    ///
+    /// If `slice.len()` is not a multiple of `size.width * size.height`, this method will panic.
+    #[must_use]
+    fn slice_aligned_mut<'a, E>(&self, slice: &'a mut [E], size: Size, axis: usize) -> &'a mut [E];
 }
