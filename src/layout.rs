@@ -29,31 +29,31 @@ pub trait Traversal {
     /// The positions are returned in the order defined by the traversal.
     ///
     /// Positions that would be partially outside the rectangle are not yielded.
-    fn iter_pos<T: Int>(&self, rect: Rect<T>) -> impl Iterator<Item = Pos<T>>;
+    fn iter_pos<T: Int>(rect: Rect<T>) -> impl Iterator<Item = Pos<T>>;
 
     /// Returns an iterator over blocks (smaller, equally-sized rectangles).
     ///
     /// The blocks are returned in the order defined by the traversal.
     ///
     /// Blocks that would be partially outside the rectangle are not yielded.
-    fn iter_rect<T: Int>(&self, rect: Rect<T>, size: Size) -> impl Iterator<Item = Rect<T>>;
+    fn iter_rect<T: Int>(rect: Rect<T>, size: Size) -> impl Iterator<Item = Rect<T>>;
 }
 
 /// Defines mapping a 2D layout to a linear access patterns.
 pub trait Linear: Traversal {
     /// Translates a 2D position to a linear index for the current layout.
     #[must_use]
-    fn pos_to_index(&self, pos: Pos<usize>, width: usize) -> usize;
+    fn pos_to_index(pos: Pos<usize>, width: usize) -> usize;
 
     /// Translates a linear index to a 2D position for the current layout.
     #[must_use]
-    fn index_to_pos(&self, index: usize, width: usize) -> Pos<usize>;
+    fn index_to_pos(index: usize, width: usize) -> Pos<usize>;
 
     /// Returns the length of the linear data for the given size and axis.
     ///
     /// This is the maximum value that can be provided as `axis` to `slice_aligned`.
     #[must_use]
-    fn len_aligned(&self, size: Size) -> usize;
+    fn len_aligned(size: Size) -> usize;
 
     /// Returns a range of indices for the rectangle defined by the layout.
     ///
@@ -61,27 +61,21 @@ pub trait Linear: Traversal {
     ///
     /// If the rectangle is not aligned to the current data, the range will be `None`.
     #[must_use]
-    fn rect_to_range(&self, size: Size, rect: Rect<usize>) -> Option<Range<usize>>;
+    fn rect_to_range(size: Size, rect: Rect<usize>) -> Option<Range<usize>>;
 
     /// Returns a slice of the given slice for the rectangle defined by the layout.
     ///
     /// If the rectangle is not aligned to the current data, the slice will be `None`.
-    fn slice_rect_aligned<'a, E>(
-        &self,
-        slice: &'a [E],
-        size: Size,
-        rect: Rect<usize>,
-    ) -> Option<&'a [E]>;
+    fn slice_rect_aligned<E>(slice: &[E], size: Size, rect: Rect<usize>) -> Option<&[E]>;
 
     /// Returns a mutable slice of the given slice for the rectangle defined by the layout.
     ///
     /// If the rectangle is not aligned to the current data, the slice will be `None`.
-    fn slice_rect_aligned_mut<'a, E>(
-        &self,
-        slice: &'a mut [E],
+    fn slice_rect_aligned_mut<E>(
+        slice: &mut [E],
         size: Size,
         rect: Rect<usize>,
-    ) -> Option<&'a mut [E]>;
+    ) -> Option<&mut [E]>;
 
     /// Returns a slice of the given slice for the axis defined by the layout.
     ///
@@ -91,7 +85,7 @@ pub trait Linear: Traversal {
     ///
     /// If `slice.len()` is not a multiple of `size.width * size.height`, this method will panic.
     #[must_use]
-    fn slice_aligned<'a, E>(&self, slice: &'a [E], size: Size, axis: usize) -> &'a [E];
+    fn slice_aligned<E>(slice: &[E], size: Size, axis: usize) -> &[E];
 
     /// Returns a mutable slice of the given slice for the axis defined by the layout.
     ///
@@ -101,5 +95,5 @@ pub trait Linear: Traversal {
     ///
     /// If `slice.len()` is not a multiple of `size.width * size.height`, this method will panic.
     #[must_use]
-    fn slice_aligned_mut<'a, E>(&self, slice: &'a mut [E], size: Size, axis: usize) -> &'a mut [E];
+    fn slice_aligned_mut<E>(slice: &mut [E], size: Size, axis: usize) -> &mut [E];
 }

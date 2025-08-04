@@ -397,7 +397,7 @@ impl<T: Int> Rect<T> {
     ///
     /// [`layout`]: crate::layout
     pub fn pos_iter(&self) -> impl Iterator<Item = Pos<T>> {
-        RowMajor.iter_pos(*self)
+        RowMajor::iter_pos(*self)
     }
 
     /// Returns a sub-rectangle representing a row within this rectangle.
