@@ -131,7 +131,7 @@ impl Traversal for RowMajor {
     ///     ]
     /// );
     /// ```
-    fn pos_iter<T: Int>(&self, rect: Rect<T>) -> impl Iterator<Item = Pos<T>> {
+    fn iter_pos<T: Int>(&self, rect: Rect<T>) -> impl Iterator<Item = Pos<T>> {
         let current = rect.top_left();
         IterPosRowMajor {
             current,
@@ -167,7 +167,7 @@ impl Traversal for RowMajor {
     ///     ]
     /// );
     /// ```
-    fn rect_iter<T: Int>(&self, rect: Rect<T>, size: Size) -> impl Iterator<Item = Rect<T>> {
+    fn iter_block<T: Int>(&self, rect: Rect<T>, size: Size) -> impl Iterator<Item = Rect<T>> {
         let current = rect.top_left();
         IterBlockRowMajor {
             current,
@@ -178,38 +178,14 @@ impl Traversal for RowMajor {
 }
 
 impl Linear for RowMajor {
-    fn to_1d<T: Int>(&self, pos: Pos<T>, width: usize) -> usize {
-        pos.y.to_usize() * width + pos.x.to_usize()
+    fn pos_to_index(&self, pos: Pos<usize>, width: usize) -> usize {
+        pos.y * width + pos.x
     }
 
-    fn to_2d<T: Int>(&self, index: usize, width: usize) -> Pos<T> {
+    fn index_to_pos(&self, index: usize, width: usize) -> Pos<usize> {
         let x = index % width;
         let y = index / width;
-        Pos::new(T::from_usize(x), T::from_usize(y))
-    }
-
-    unsafe fn iter_rect_unchecked<'a, T: Int, E>(
-        &'a self,
-        rect: Rect<usize>,
-        size: Size,
-        data: &'a [E],
-    ) -> impl Iterator<Item = &'a E> {
-        debug_assert!(
-            data.len() == size.width * size.height,
-            "Data length does not match the area of the size"
-        );
-        debug_assert!(
-            rect.left() + rect.width() <= size.width && rect.top() + rect.height() <= size.height,
-            "Rectangle {rect:?} is out of bounds for size {size:?}"
-        );
-        (0..rect.height()).flat_map(move |row| {
-            let start = (rect.top() + row) * size.width + rect.left();
-            let slice = unsafe {
-                let ptr = data.as_ptr().add(start);
-                core::slice::from_raw_parts(ptr, rect.width())
-            };
-            slice.iter()
-        })
+        Pos::new(x, y)
     }
 }
 
@@ -217,16 +193,14 @@ impl Linear for RowMajor {
 mod tests {
     extern crate alloc;
 
-    use crate::layout::Block;
-
     use super::*;
-    use alloc::{vec, vec::Vec};
+    use alloc::vec::Vec;
 
     #[test]
     fn row_major_positions() {
         let rect = Rect::from_ltwh(0, 0, 2, 2);
         let traversal = RowMajor;
-        let positions: Vec<_> = traversal.pos_iter(rect).collect();
+        let positions: Vec<_> = traversal.iter_pos(rect).collect();
         assert_eq!(
             positions,
             &[
@@ -243,7 +217,7 @@ mod tests {
         let rect = Rect::from_ltwh(0, 0, 4, 4);
         let traversal = RowMajor;
         let size = Size::new(2, 2);
-        let blocks: Vec<_> = traversal.rect_iter(rect, size).collect();
+        let blocks: Vec<_> = traversal.iter_block(rect, size).collect();
         assert_eq!(
             blocks,
             &[
@@ -260,7 +234,7 @@ mod tests {
         let rect = Rect::from_ltwh(0, 0, 5, 3);
         let traversal = RowMajor;
         let size = Size::new(2, 2);
-        let blocks: Vec<_> = traversal.rect_iter(rect, size).collect();
+        let blocks: Vec<_> = traversal.iter_block(rect, size).collect();
         assert_eq!(
             blocks,
             &[Rect::from_ltwh(0, 0, 2, 2), Rect::from_ltwh(2, 0, 2, 2),]
@@ -268,75 +242,18 @@ mod tests {
     }
 
     #[test]
-    fn row_major_iter_rect_from_slice() {
-        let traversal = RowMajor;
-        let rect = Rect::from_ltwh(0, 0, 3, 2);
-        let size = Size::new(3, 2);
-        let data: Vec<i32> = (0..6).collect(); // 3x2 grid
-        let iter: Vec<_> = traversal.iter_rect(rect, size, &data).collect();
-        assert_eq!(iter, &[&0, &1, &2, &3, &4, &5]);
-    }
-
-    #[test]
-    fn col_major_iter_rect_from_slice() {
-        let traversal = RowMajor;
-        let rect = Rect::from_ltwh(0, 0, 3, 2);
-        let size = Size::new(3, 2);
-        let data: Vec<i32> = (0..6).collect(); // 3x2 grid
-        let iter: Vec<_> = traversal.iter_rect(rect, size, &data).collect();
-        assert_eq!(iter, &[&0, &1, &2, &3, &4, &5]);
-    }
-
-    #[test]
-    fn block_row_major_row_major_from_slice() {
-        let traversal = Block::row_major(2, 2);
-        let rect = Rect::from_ltwh(0, 0, 4, 4);
-        let size = Size::new(4, 4);
-        let data: Vec<i32> = (0..16).collect(); // 4x4 grid
-        let iter: Vec<_> = traversal.iter_rect(rect, size, &data).collect();
-        assert_eq!(
-            iter,
-            &[
-                &0, &1, &2, &3, &4, &5, &6, &7, &8, &9, &10, &11, &12, &13, &14, &15
-            ]
-        );
-    }
-
-    #[test]
     fn row_major_to_1d() {
-        assert_eq!(RowMajor.to_1d(Pos::new(0, 0), 2), 0);
-        assert_eq!(RowMajor.to_1d(Pos::new(1, 0), 2), 1);
-        assert_eq!(RowMajor.to_1d(Pos::new(0, 1), 2), 2);
-        assert_eq!(RowMajor.to_1d(Pos::new(1, 1), 2), 3);
+        assert_eq!(RowMajor.pos_to_index(Pos::new(0, 0), 2), 0);
+        assert_eq!(RowMajor.pos_to_index(Pos::new(1, 0), 2), 1);
+        assert_eq!(RowMajor.pos_to_index(Pos::new(0, 1), 2), 2);
+        assert_eq!(RowMajor.pos_to_index(Pos::new(1, 1), 2), 3);
     }
 
     #[test]
     fn row_major_to_2d() {
-        assert_eq!(RowMajor.to_2d(0, 2), Pos::new(0, 0));
-        assert_eq!(RowMajor.to_2d(1, 2), Pos::new(1, 0));
-        assert_eq!(RowMajor.to_2d(2, 2), Pos::new(0, 1));
-        assert_eq!(RowMajor.to_2d(3, 2), Pos::new(1, 1));
-    }
-
-    #[test]
-    #[should_panic(expected = "Data length does not match the area of the size")]
-    fn row_major_iter_rect_unchecked_panic_data_length_mismatch() {
-        let traversal = RowMajor;
-        let rect = Rect::from_ltwh(0, 0, 4, 4);
-        let size = Size::new(2, 2);
-        let data: Vec<i32> = (0..5).collect(); // 2x2 grid, but only 5 elements
-        let _iter: Vec<_> = traversal.iter_rect(rect, size, &data).collect();
-    }
-
-    #[test]
-    #[should_panic(
-        expected = "Data length does not match the area of the size\n  left: 2\n right: 9"
-    )]
-    fn row_major_iter_rect_unchecked_panic_out_of_bounds() {
-        let traversal = RowMajor;
-        let rect = Rect::from_ltwh(0, 0, 5, 5);
-        let size = Size::new(3, 3);
-        let data = vec![0, 9];
-        let _iter: Vec<_> = traversal.iter_rect(rect, size, &data).collect();
+        assert_eq!(RowMajor.index_to_pos(0, 2), Pos::new(0, 0));
+        assert_eq!(RowMajor.index_to_pos(1, 2), Pos::new(1, 0));
+        assert_eq!(RowMajor.index_to_pos(2, 2), Pos::new(0, 1));
+        assert_eq!(RowMajor.index_to_pos(3, 2), Pos::new(1, 1));
     }
 }

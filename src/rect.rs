@@ -1,6 +1,10 @@
 use core::ops;
 
-use crate::{HasSize, Pos, Size, int::Int};
+use crate::{
+    HasSize, Pos, Size,
+    int::Int,
+    layout::{RowMajor, Traversal},
+};
 
 /// A macro that creates a rectangle with the given coordinates.
 ///
@@ -383,6 +387,61 @@ impl<T: Int> Rect<T> {
         } else {
             Rect::EMPTY
         }
+    }
+
+    /// Returns an iterator over the positions in the rectangle.
+    ///
+    /// The positions are returned in row-major order, starting from the top-left corner.
+    ///
+    /// For additional traversal methods, see the [`layout`][] module.
+    ///
+    /// [`layout`]: crate::layout
+    pub fn pos_iter(&self) -> impl Iterator<Item = Pos<T>> {
+        RowMajor.iter_pos(*self)
+    }
+
+    /// Returns a sub-rectangle within this rectangle.
+    ///
+    /// The returned rectangle is guaranteed to be within the bounds of this rectangle.
+    #[must_use]
+    pub fn sub_rect(&self, top_left: Pos<T>, size: Size) -> Rect<T> {
+        let l = top_left.x;
+        let t = top_left.y;
+        let r = l + T::from_usize(size.width);
+        let b = t + T::from_usize(size.height);
+
+        Rect {
+            l: core::cmp::max(self.l, l),
+            t: core::cmp::max(self.t, t),
+            r: core::cmp::min(self.r, r),
+            b: core::cmp::min(self.b, b),
+        }
+    }
+
+    /// Returns a sub-rectangle representing a row within this rectangle.
+    ///
+    /// The returned rectangle is guaranteed to be within the bounds of this rectangle.
+    #[must_use]
+    pub fn row_rect(&self, row: usize) -> Rect<T> {
+        let l = self.l;
+        let t = self.t + T::from_usize(row);
+        let r = self.r;
+        let b = t + T::from_usize(1);
+
+        Rect { l, t, r, b }
+    }
+
+    /// Returns a sub-rectangle representing a column within this rectangle.
+    ///
+    /// The returned rectangle is guaranteed to be within the bounds of this rectangle.
+    #[must_use]
+    pub fn col_rect(&self, col: usize) -> Rect<T> {
+        let l = self.l + T::from_usize(col);
+        let t = self.t;
+        let r = l + T::from_usize(1);
+        let b = self.b;
+
+        Rect { l, t, r, b }
     }
 }
 

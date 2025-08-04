@@ -9,7 +9,7 @@
 //!
 //! In addition, the [`Linear`] trait provides mapping and iterating methods for linear data.
 
-use crate::{HasSize as _, Pos, Rect, Size, int::Int};
+use crate::{Pos, Rect, Size, int::Int};
 
 mod block;
 pub use block::Block;
@@ -22,72 +22,28 @@ pub use row_major::RowMajor;
 
 /// Defines iterating orders for traversing a 2D layout.
 pub trait Traversal {
-    /// Returns an iterator over the positions in the specified rectangle.
+    /// Returns an iterator over the positions.
     ///
     /// The positions are returned in the order defined by the traversal.
-    fn pos_iter<T: Int>(&self, rect: Rect<T>) -> impl Iterator<Item = Pos<T>>;
+    ///
+    /// Positions that would be partially outside the rectangle are not yielded.
+    fn iter_pos<T: Int>(&self, rect: Rect<T>) -> impl Iterator<Item = Pos<T>>;
 
-    /// Returns an iterator over blocks of the specified size within the rectangle.
+    /// Returns an iterator over blocks (smaller, equally-sized rectangles).
+    ///
+    /// The blocks are returned in the order defined by the traversal.
     ///
     /// Blocks that would be partially outside the rectangle are not yielded.
-    fn rect_iter<T: Int>(&self, rect: Rect<T>, size: Size) -> impl Iterator<Item = Rect<T>>;
+    fn iter_block<T: Int>(&self, rect: Rect<T>, size: Size) -> impl Iterator<Item = Rect<T>>;
 }
 
 /// Defines mapping a 2D layout to a linear access patterns.
-pub trait Linear: Traversal {
-    /// Given a 2-dimensional position and a width, returns the corresponding 1D index.
-    fn to_1d<T: Int>(&self, pos: Pos<T>, width: usize) -> usize;
+pub trait Linear {
+    /// Translates a 2D position to a linear index for the current layout.
+    #[must_use]
+    fn pos_to_index(&self, pos: Pos<usize>, width: usize) -> usize;
 
-    /// Given a 1D index and a width, returns the corresponding 2-dimensional position.
-    fn to_2d<T: Int>(&self, index: usize, width: usize) -> Pos<T>;
-
-    /// Returns an iterator of elements in a rectangle, assuming `data` represents this layout.
-    ///
-    /// The elements are returned in the order defined by the traversal.
-    ///
-    /// If the rectangle is larger than the data, it will yield only the elements that fit within
-    /// the rectangle.
-    ///
-    /// ## Panics
-    ///
-    /// If the length of `data` is not equal to the area of `size`.
-    fn iter_rect<'a, T: Int, E>(
-        &'a self,
-        rect: Rect<T>,
-        size: Size,
-        data: &'a [E],
-    ) -> impl Iterator<Item = &'a E> {
-        assert_eq!(
-            data.len(),
-            size.width * size.height,
-            "Data length does not match the area of the size"
-        );
-        let rect = Rect::<usize>::from_ltwh(
-            T::saturating_to_usize(rect.left()),
-            T::saturating_to_usize(rect.top()),
-            rect.width().min(size.width),
-            rect.height().min(size.height),
-        );
-        let rect = rect.intersect(size.to_rect());
-        unsafe { self.iter_rect_unchecked::<usize, E>(rect, size, data) }
-    }
-
-    /// Returns an iterator of elements in a rectangle, assuming `data` represents this layout.
-    ///
-    /// The elements are returned in the order defined by the traversal.
-    ///
-    /// ## Safety
-    ///
-    /// This method assumes that:
-    ///
-    /// - The `data` slice is large enough to cover the rectangle defined by `rect` and `size`.
-    /// - The `rect` is within the bounds of the data.
-    ///
-    /// If either of these conditions are not met, it may lead to undefined behavior.
-    unsafe fn iter_rect_unchecked<'a, T: Int, E>(
-        &'a self,
-        rect: Rect<usize>,
-        size: Size,
-        data: &'a [E],
-    ) -> impl Iterator<Item = &'a E>;
+    /// Translates a linear index to a 2D position for the current layout.
+    #[must_use]
+    fn index_to_pos(&self, index: usize, width: usize) -> Pos<usize>;
 }

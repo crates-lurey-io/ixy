@@ -1,6 +1,6 @@
 use core::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
 
-use crate::Rect;
+use crate::{Pos, Rect};
 
 /// Represents a size in 2D space, with `width` and `height`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -23,6 +23,12 @@ impl Size {
     #[must_use]
     pub const fn area(&self) -> usize {
         self.width * self.height
+    }
+
+    /// Converts the size to a position.
+    #[must_use]
+    pub const fn to_pos(&self) -> Pos<usize> {
+        Pos::new(self.width, self.height)
     }
 }
 
