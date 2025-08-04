@@ -267,6 +267,24 @@ mod tests {
     }
 
     #[test]
+    fn slice_aligned_mut() {
+        #[rustfmt::skip]
+        let slice = &mut [
+            1, 2, 3,
+            4, 5, 6
+        ];
+        let size = Size::new(2, 3);
+        assert_eq!(
+            ColumnMajor.slice_aligned_mut(slice, size, 0),
+            &mut [1, 2, 3]
+        );
+        assert_eq!(
+            ColumnMajor.slice_aligned_mut(slice, size, 1),
+            &mut [4, 5, 6]
+        );
+    }
+
+    #[test]
     fn slice_aligned_in_bounds() {
         #[rustfmt::skip]
         let slice = &[

@@ -400,24 +400,6 @@ impl<T: Int> Rect<T> {
         RowMajor.iter_pos(*self)
     }
 
-    /// Returns a sub-rectangle within this rectangle.
-    ///
-    /// The returned rectangle is guaranteed to be within the bounds of this rectangle.
-    #[must_use]
-    pub fn sub_rect(&self, top_left: Pos<T>, size: Size) -> Rect<T> {
-        let l = top_left.x;
-        let t = top_left.y;
-        let r = l + T::from_usize(size.width);
-        let b = t + T::from_usize(size.height);
-
-        Rect {
-            l: core::cmp::max(self.l, l),
-            t: core::cmp::max(self.t, t),
-            r: core::cmp::min(self.r, r),
-            b: core::cmp::min(self.b, b),
-        }
-    }
-
     /// Returns a sub-rectangle representing a row within this rectangle.
     ///
     /// The returned rectangle is guaranteed to be within the bounds of this rectangle.
@@ -544,7 +526,10 @@ impl<T: Int> ops::DivAssign<T> for Rect<T> {
 
 #[cfg(test)]
 mod tests {
+    extern crate alloc;
+
     use super::*;
+    use alloc::vec::Vec;
 
     #[test]
     fn rect_macro_ltrb() {
@@ -860,5 +845,40 @@ mod tests {
         assert_eq!(rect.top(), 2);
         assert_eq!(rect.right(), 3);
         assert_eq!(rect.bottom(), 4);
+    }
+
+    #[test]
+    fn pos_iter() {
+        let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
+        let positions: Vec<Pos<i32>> = rect.pos_iter().collect();
+        assert_eq!(
+            positions,
+            &[
+                Pos::new(1, 2),
+                Pos::new(2, 2),
+                Pos::new(1, 3),
+                Pos::new(2, 3)
+            ]
+        );
+    }
+
+    #[test]
+    fn row_rect() {
+        let rect = Rect::from_ltrb(1, 2, 5, 6).unwrap();
+        let row_rect = rect.row_rect(0);
+        assert_eq!(row_rect.left(), 1);
+        assert_eq!(row_rect.top(), 2);
+        assert_eq!(row_rect.right(), 5);
+        assert_eq!(row_rect.bottom(), 3);
+    }
+
+    #[test]
+    fn col_rect() {
+        let rect = Rect::from_ltrb(1, 2, 5, 6).unwrap();
+        let col_rect = rect.col_rect(0);
+        assert_eq!(col_rect.left(), 1);
+        assert_eq!(col_rect.top(), 2);
+        assert_eq!(col_rect.right(), 2);
+        assert_eq!(col_rect.bottom(), 6);
     }
 }

@@ -299,7 +299,7 @@ where
     }
 
     fn len_aligned(&self, size: Size) -> usize {
-        self.grid.len_aligned(size) * self.size.height
+        self.grid.len_aligned(size)
     }
 
     fn slice_aligned<'a, E>(&self, slice: &'a [E], size: Size, axis: usize) -> &'a [E] {
@@ -644,6 +644,25 @@ mod tests {
         assert_eq!(block.size.height, 2);
         assert_eq!(block.grid, ColumnMajor);
         assert_eq!(block.cell, RowMajor);
+    }
+
+    #[test]
+    fn len_aligned() {
+        let block = Block::row_major(2, 2);
+        let size = Size::new(4, 2);
+        assert_eq!(block.len_aligned(size), 2);
+    }
+
+    #[test]
+    fn slice_aligned_mut_in_bounds() {
+        #[rustfmt::skip]
+        let slice = &mut [
+            0, 1, 2, 3,
+            4, 5, 6, 7,
+        ];
+        let block = Block::row_major(2, 2);
+        let size = Size::new(4, 2);
+        assert_eq!(block.slice_aligned_mut(slice, size, 0), &mut [0, 1, 2, 3]);
     }
 
     #[test]

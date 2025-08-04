@@ -471,7 +471,7 @@ pub trait TryFromPos<T: Int>: Sized {
     fn try_from_pos(value: Pos<T>) -> Result<Self, TryFromPosError>;
 }
 
-/// A trait for converting a `Pos<T>` to another type.
+/// A trait for converting a `Pos<T>` from another type.
 pub trait TryIntoPos<T: Int>: Sized {
     /// Returns the type that the `Pos<T>` can be converted to.
     ///
