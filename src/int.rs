@@ -3,7 +3,7 @@
 //! These traits provides a common interface for working with integers generically.
 
 use core::{
-    fmt::Debug,
+    fmt::{Debug, Display},
     ops::{
         Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div,
         DivAssign, Mul, MulAssign, Neg, Not, Rem, RemAssign, Shl, ShlAssign, Shr, ShrAssign, Sub,
@@ -25,6 +25,7 @@ use crate::internal::Sealed;
 pub trait Int:
     Sealed
     + Debug
+    + Display
     + Sized
     + Copy
     + PartialEq

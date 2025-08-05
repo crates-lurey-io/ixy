@@ -1,7 +1,9 @@
+use core::{marker::PhantomData, ops::Range};
+
 use crate::{
     Pos, Rect, Size,
     int::Int,
-    layout::{ColumnMajor, Linear, RowMajor, Traversal},
+    layout::{Linear, RowMajor, Traversal},
 };
 
 /// 2D space divided into blocks, each containing a grid of cells.
@@ -13,7 +15,7 @@ use crate::{
 /// [`with_grid`]: Block::with_grid
 /// [`with_cell`]: Block::with_cell
 ///
-/// For example, `Block<RowMajor, RowMajor>` with a block-size of 2x2:
+/// For example, `Block<2, 2, RowMajor, RowMajor>` (a block-size of 2x2, with row-major traversals):
 ///
 /// ```txt
 /// B0:   B1:
@@ -34,8 +36,7 @@ use crate::{
 /// use ixy::{Pos, Rect, Size, layout::{Block, Traversal}};
 ///
 /// let rect = Rect::from_ltwh(0, 0, 4, 4);
-/// let block = Block::row_major(2, 2);
-/// let cells: Vec<_> = block.pos_iter(rect).collect();
+/// let cells: Vec<_> = Block::<2, 2>::iter_pos(rect).collect();
 /// assert_eq!(
 ///    cells,
 ///    &[
@@ -65,80 +66,12 @@ use crate::{
 ///     ]
 /// );
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Block<G, C> {
-    size: Size,
-    grid: G,
-    cell: C,
+pub struct Block<const W: usize, const H: usize, G = RowMajor, C = G> {
+    grid: PhantomData<G>,
+    cell: PhantomData<C>,
 }
 
-impl<G: Copy, C: Copy> Block<G, C> {
-    /// Creates a new block layout with the specified width, height, and traversal orders.
-    #[must_use]
-    pub const fn new(width: usize, height: usize, grid: G, cell: C) -> Self {
-        Block {
-            size: Size { width, height },
-            grid,
-            cell,
-        }
-    }
-}
-
-impl Block<RowMajor, RowMajor> {
-    /// Creates a new block layout with the specified width and height.
-    ///
-    /// Defaults to blocks being laid out in a row-major order, with cells in a row-major order.
-    #[must_use]
-    pub const fn row_major(width: usize, height: usize) -> Self {
-        Block {
-            size: Size { width, height },
-            grid: RowMajor,
-            cell: RowMajor,
-        }
-    }
-}
-
-impl Block<ColumnMajor, ColumnMajor> {
-    /// Creates a new block layout with the specified width and height.
-    ///
-    /// Defaults to blocks being laid out in a column-major order, with cells in a column-major order.
-    #[must_use]
-    pub const fn col_major(width: usize, height: usize) -> Self {
-        Block {
-            size: Size { width, height },
-            grid: ColumnMajor,
-            cell: ColumnMajor,
-        }
-    }
-}
-
-impl<B: Copy, C: Copy> Block<B, C> {
-    /// Transforms the block layout with the provided way to traverse the grid for blocks.
-    ///
-    /// This allows for different traversal orders for the blocks themselves.
-    #[must_use]
-    pub const fn with_grid<BT>(self, grid_layout: BT) -> Block<BT, C> {
-        Block {
-            grid: grid_layout,
-            size: self.size,
-            cell: self.cell,
-        }
-    }
-
-    /// Transforms the block layout with the provided way to traverse the blocks for cells.
-    ///
-    /// This allows for different traversal orders for the cells within each block.
-    #[must_use]
-    pub const fn with_cell<CT>(self, cell_layout: CT) -> Block<B, CT> {
-        Block {
-            cell: cell_layout,
-            size: self.size,
-            grid: self.grid,
-        }
-    }
-}
-
-impl<G: Traversal, C: Traversal> Traversal for Block<G, C> {
+impl<const W: usize, const H: usize, G: Traversal, C: Traversal> Traversal for Block<W, H, G, C> {
     /// Returns an iterator over the positions in the specified rectangle.
     ///
     /// The positions are returned in the order defined by the traversal.
@@ -157,8 +90,7 @@ impl<G: Traversal, C: Traversal> Traversal for Block<G, C> {
     /// use ixy::{Pos, Rect, Size, layout::{Block, Traversal}};
     ///
     /// let rect = Rect::from_ltwh(0, 0, 4, 4);
-    /// let block = Block::row_major(2, 2);
-    /// let positions: Vec<_> = block.pos_iter(rect).collect();
+    /// let positions: Vec<_> = Block::<2, 2>::iter_pos(rect).collect();
     /// assert_eq!(
     ///    positions,
     ///    &[
@@ -188,10 +120,15 @@ impl<G: Traversal, C: Traversal> Traversal for Block<G, C> {
     ///    ]
     /// );
     /// ```
-    fn pos_iter<T: Int>(&self, rect: Rect<T>) -> impl Iterator<Item = Pos<T>> {
-        self.grid
-            .rect_iter(rect, self.size)
-            .flat_map(move |block_rect| self.cell.pos_iter(block_rect))
+    fn iter_pos<T: Int>(rect: Rect<T>) -> impl Iterator<Item = Pos<T>> {
+        G::iter_rect(
+            rect,
+            Size {
+                width: W,
+                height: H,
+            },
+        )
+        .flat_map(move |block_rect| C::iter_pos(block_rect))
     }
 
     /// Returns an iterator over (sub-)blocks of the specified size within the rectangle.
@@ -226,10 +163,8 @@ impl<G: Traversal, C: Traversal> Traversal for Block<G, C> {
     /// use ixy::{Rect, Size, layout::{Block, Traversal}};
     ///
     /// let rect = Rect::from_ltwh(0, 0, 8, 8);
-    /// let outer_block = Block::row_major(4, 4);
     /// let inner_block = Size::new(2, 2);
-    /// let blocks: Vec<_> = outer_block.rect_iter(rect, inner_block).collect();
-    ///
+    /// let blocks: Vec<_> = Block::<4, 4>::iter_rect(rect, inner_block).collect();
     /// assert_eq!(
     ///   blocks,
     ///   &[
@@ -259,70 +194,101 @@ impl<G: Traversal, C: Traversal> Traversal for Block<G, C> {
     ///   ]
     /// );
     /// ```
-    fn rect_iter<T: Int>(&self, rect: Rect<T>, size: Size) -> impl Iterator<Item = Rect<T>> {
-        self.grid
-            .rect_iter(rect, self.size)
-            .flat_map(move |block_rect| self.cell.rect_iter(block_rect, size))
+    fn iter_rect<T: Int>(rect: Rect<T>, size: Size) -> impl Iterator<Item = Rect<T>> {
+        G::iter_rect(
+            rect,
+            Size {
+                width: W,
+                height: H,
+            },
+        )
+        .flat_map(move |block_rect| C::iter_rect(block_rect, size))
     }
 }
 
-impl<G: Traversal, C: Traversal> Linear for Block<G, C>
+impl<const W: usize, const H: usize, G: Traversal, C: Traversal> Linear for Block<W, H, G, C>
 where
     G: Linear,
     C: Linear,
 {
-    fn to_1d<T: Int>(&self, pos: Pos<T>, width: usize) -> usize {
-        let block_x = pos.x.to_usize() / self.size.width;
-        let block_y = pos.y.to_usize() / self.size.height;
-        let cell_x = pos.x.to_usize() % self.size.width;
-        let cell_y = pos.y.to_usize() % self.size.height;
+    fn pos_to_index(pos: Pos<usize>, width: usize) -> usize {
+        let block_x = pos.x / W;
+        let block_y = pos.y / H;
+        let cell_x = pos.x % W;
+        let cell_y = pos.y % H;
 
         let block_pos = Pos::new(block_x, block_y);
         let cell_pos = Pos::new(cell_x, cell_y);
 
-        let block_offset = self.grid.to_1d(block_pos, width / self.size.width);
-        let cell_offset = self.cell.to_1d(cell_pos, self.size.width);
+        let blocks_per_row = width / W;
+        let block_offset = G::pos_to_index(block_pos, blocks_per_row);
+        let cell_offset = C::pos_to_index(cell_pos, W);
 
-        block_offset * (self.size.width * self.size.height) + cell_offset
+        block_offset * (W * H) + cell_offset
     }
 
-    fn to_2d<T: Int>(&self, index: usize, width: usize) -> Pos<T> {
-        let cells_per_block = self.size.width * self.size.height;
+    fn index_to_pos(index: usize, width: usize) -> Pos<usize> {
+        let cells_per_block = W * H;
         let block_index = index / cells_per_block;
         let cell_index = index % cells_per_block;
 
-        let block_grid_width = width / self.size.width;
-        let block_pos = self.grid.to_2d::<usize>(block_index, block_grid_width);
-        let cell_pos = self.cell.to_2d::<usize>(cell_index, self.size.width);
+        let block_grid_width = width / W;
+        let block_pos = G::index_to_pos(block_index, block_grid_width);
+        let cell_pos = C::index_to_pos(cell_index, W);
 
-        Pos::new(
-            T::from_usize(block_pos.x * self.size.width + cell_pos.x),
-            T::from_usize(block_pos.y * self.size.height + cell_pos.y),
-        )
+        block_pos * Pos::new(W, H) + cell_pos
     }
 
-    unsafe fn iter_rect_unchecked<'a, T: Int, E>(
-        &'a self,
-        rect: Rect<usize>,
-        size: Size,
-        data: &'a [E],
-    ) -> impl Iterator<Item = &'a E> {
-        debug_assert!(
-            data.len() == size.width * size.height,
-            "Data length does not match the area of the size"
-        );
-        debug_assert!(
-            rect.left() + rect.width() <= size.width && rect.top() + rect.height() <= size.height,
-            "Rectangle {rect:?} is out of bounds for size {size:?}"
-        );
+    fn len_aligned(size: Size) -> usize {
+        G::len_aligned(size)
+    }
 
-        // This is where the block layout shines, as it can return a single continuous slice!
-        let start = self.to_1d(rect.top_left(), size.width);
-        let slice = unsafe {
-            let ptr = data.as_ptr().add(start);
-            core::slice::from_raw_parts(ptr, rect.area())
-        };
-        slice.iter()
+    fn rect_to_range(grid_size: Size, rect: Rect<usize>) -> Option<Range<usize>> {
+        // Must be either:
+        // - Elements entirely within a single block
+        // - Elements spanning multiple blocks but full-sized
+
+        // Check if the rectangle is aligned to the block size
+        if rect.width() % W != 0 || rect.height() % H != 0 {
+            return None;
+        }
+
+        // Calculate the start and end indices based on the block layout
+        let start = Self::pos_to_index(rect.top_left(), grid_size.width);
+        let end = Self::pos_to_index(rect.bottom_right() - Pos::new(1, 1), grid_size.width) + 1;
+        if end > grid_size.width * grid_size.height {
+            return None;
+        }
+
+        Some(start..end)
+    }
+
+    fn slice_rect_aligned<E>(slice: &[E], size: Size, rect: Rect<usize>) -> Option<&[E]> {
+        let range = Self::rect_to_range(size, rect)?;
+        if range.end > slice.len() {
+            return None;
+        }
+        Some(&slice[range])
+    }
+
+    fn slice_rect_aligned_mut<E>(
+        slice: &mut [E],
+        size: Size,
+        rect: Rect<usize>,
+    ) -> Option<&mut [E]> {
+        let range = Self::rect_to_range(size, rect)?;
+        if range.end > slice.len() {
+            return None;
+        }
+        Some(&mut slice[range])
+    }
+
+    fn slice_aligned<E>(slice: &[E], size: Size, axis: usize) -> &[E] {
+        G::slice_aligned(slice, size, axis)
+    }
+
+    fn slice_aligned_mut<E>(slice: &mut [E], size: Size, axis: usize) -> &mut [E] {
+        G::slice_aligned_mut(slice, size, axis)
     }
 }
 
@@ -330,14 +296,15 @@ where
 mod tests {
     extern crate alloc;
 
+    use crate::layout::ColumnMajor;
+
     use super::*;
-    use alloc::{vec, vec::Vec};
+    use alloc::vec::Vec;
 
     #[test]
     fn test_block_row_major_blocks_row_major_cells_positions() {
-        let block = Block::row_major(2, 2);
         let rect = Rect::from_ltwh(0, 0, 4, 4);
-        let positions: Vec<_> = block.pos_iter(rect).collect();
+        let positions: Vec<_> = Block::<2, 2>::iter_pos(rect).collect();
 
         // 0 1 | 2 3
         // 4 5 | 6 7
@@ -378,9 +345,8 @@ mod tests {
     #[test]
     fn test_block_row_major_big_blocks_row_major_small_blocks() {
         let rect = Rect::from_ltwh(0, 0, 16, 16);
-        let block = Block::row_major(4, 4);
         let size = Size::new(2, 2);
-        let blocks: Vec<_> = block.rect_iter(rect, size).collect();
+        let blocks: Vec<_> = Block::<4, 4>::iter_rect(rect, size).collect();
         assert_eq!(
             blocks,
             &[
@@ -474,9 +440,8 @@ mod tests {
 
     #[test]
     fn test_block_col_major_blocks_col_major_cells_positions() {
-        let block = Block::col_major(2, 2);
         let rect = Rect::from_ltwh(0, 0, 4, 4);
-        let positions: Vec<_> = block.pos_iter(rect).collect();
+        let positions: Vec<_> = Block::<2, 2, ColumnMajor>::iter_pos(rect).collect();
 
         // 0 2 | 8 A
         // 1 3 | 9 B
@@ -516,9 +481,8 @@ mod tests {
 
     #[test]
     fn test_block_row_major_blocks_col_major_cells_positions() {
-        let block = Block::row_major(2, 2).with_cell(ColumnMajor);
         let rect = Rect::from_ltwh(0, 0, 4, 4);
-        let positions: Vec<_> = block.pos_iter(rect).collect();
+        let positions: Vec<_> = Block::<2, 2, RowMajor, ColumnMajor>::iter_pos(rect).collect();
 
         // 0 2 | 4 6
         // 1 3 | 5 7
@@ -558,9 +522,8 @@ mod tests {
 
     #[test]
     fn test_block_col_major_blocks_row_major_cells_positions() {
-        let block = Block::col_major(2, 2).with_cell(RowMajor);
         let rect = Rect::from_ltwh(0, 0, 4, 4);
-        let positions: Vec<_> = block.pos_iter(rect).collect();
+        let positions: Vec<_> = Block::<2, 2, ColumnMajor, RowMajor>::iter_pos(rect).collect();
 
         // 0 1 | 4 5
         // 2 3 | 6 7
@@ -605,10 +568,9 @@ mod tests {
         // --- | ---
         // 8 9 | A B
         // C D | E F
-        let block = Block::row_major(4, 4);
         let expected: Vec<_> = (0..16).collect();
         let actual: Vec<_> = (0..4)
-            .flat_map(|y| (0..4).map(move |x| block.to_1d(Pos::new(x, y), 4)))
+            .flat_map(|y| (0..4).map(move |x| Block::<4, 4>::pos_to_index(Pos::new(x, y), 4)))
             .collect();
         assert_eq!(actual, expected);
     }
@@ -620,12 +582,25 @@ mod tests {
         // --- | ---
         // 4 6 | C E
         // 5 7 | D F
-        let block = Block::col_major(4, 4);
         let expected: Vec<_> = (0..16).collect();
         let actual: Vec<_> = (0..4)
-            .flat_map(|x| (0..4).map(move |y| block.to_1d(Pos::new(x, y), 4)))
+            .flat_map(|x| {
+                (0..4).map(move |y| Block::<4, 4, ColumnMajor>::pos_to_index(Pos::new(x, y), 4))
+            })
             .collect();
         assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_pos_to_index() {
+        assert_eq!(Block::<2, 2>::pos_to_index(Pos::new(0, 0), 4), 0);
+        assert_eq!(Block::<2, 2>::pos_to_index(Pos::new(1, 0), 4), 1);
+        assert_eq!(Block::<2, 2>::pos_to_index(Pos::new(0, 1), 4), 2);
+        assert_eq!(Block::<2, 2>::pos_to_index(Pos::new(1, 1), 4), 3);
+        assert_eq!(Block::<2, 2>::pos_to_index(Pos::new(2, 0), 4), 4);
+        assert_eq!(Block::<2, 2>::pos_to_index(Pos::new(3, 0), 4), 5);
+        assert_eq!(Block::<2, 2>::pos_to_index(Pos::new(2, 1), 4), 6);
+        assert_eq!(Block::<2, 2>::pos_to_index(Pos::new(3, 1), 4), 7);
     }
 
     #[test]
@@ -635,51 +610,127 @@ mod tests {
         // --- | ---
         // 8 9 | A B
         // C D | E F
-        let block = Block::row_major(4, 4);
         let expected: Vec<_> = (0..4)
             .flat_map(|y| (0..4).map(move |x| Pos::new(x, y)))
             .collect();
-        let actual: Vec<_> = (0..16).map(|i| block.to_2d::<i32>(i, 4)).collect();
+        let actual: Vec<_> = (0..16).map(|i| Block::<4, 4>::index_to_pos(i, 4)).collect();
         assert_eq!(actual, expected);
     }
 
     #[test]
-    fn block_new() {
-        let block = Block::new(3, 4, RowMajor, ColumnMajor);
-        assert_eq!(block.size.width, 3);
-        assert_eq!(block.size.height, 4);
-        assert_eq!(block.grid, RowMajor);
-        assert_eq!(block.cell, ColumnMajor);
+    fn len_aligned() {
+        let size = Size::new(4, 2);
+        assert_eq!(Block::<2, 2>::len_aligned(size), 2);
     }
 
     #[test]
-    fn block_with_grid() {
-        let block = Block::row_major(2, 2).with_grid(ColumnMajor);
-        assert_eq!(block.size.width, 2);
-        assert_eq!(block.size.height, 2);
-        assert_eq!(block.grid, ColumnMajor);
-        assert_eq!(block.cell, RowMajor);
+    fn slice_aligned_mut_in_bounds() {
+        #[rustfmt::skip]
+        let slice = &mut [
+            0, 1, 2, 3,
+            4, 5, 6, 7,
+        ];
+        let size = Size::new(4, 2);
+        assert_eq!(
+            Block::<2, 2>::slice_aligned_mut(slice, size, 0),
+            &mut [0, 1, 2, 3]
+        );
     }
 
     #[test]
-    #[should_panic(expected = "Data length does not match the area of the size")]
-    fn block_iter_rect_unchecked_panic_data_length_mismatch() {
-        let block = Block::row_major(2, 2);
-        let rect = Rect::from_ltwh(0, 0, 4, 4);
-        let size = Size::new(2, 2);
-        let data = vec![0; 3]; // Incorrect length
-        let _iter = unsafe { block.iter_rect_unchecked::<usize, _>(rect, size, &data) };
+    fn slice_aligned_in_bounds() {
+        #[rustfmt::skip]
+        let slice = &[
+            0, 1, 2, 3,
+            4, 5, 6, 7,
+        ];
+        let size = Size::new(4, 2);
+        assert_eq!(Block::<2, 2>::slice_aligned(slice, size, 0), &[0, 1, 2, 3]);
     }
 
     #[test]
-    #[should_panic(
-        expected = "Rectangle Rect { l: 0, t: 0, r: 5, b: 5 } is out of bounds for size Size { width: 2, height: 2 }"
-    )]
-    fn block_iter_rect_unchecked_panic_out_of_bounds() {
-        let block = Block::row_major(2, 2);
-        let rect = Rect::from_ltwh(0, 0, 5, 5); // Out of bounds for size 2x2
-        let size = Size::new(2, 2);
-        let data = vec![0; 4]; // Correct length
-        let _iter = unsafe { block.iter_rect_unchecked::<usize, _>(rect, size, &data) };
+    fn slice_aligned_out_of_bounds() {
+        #[rustfmt::skip]
+        let slice = &[
+            0, 1, 2, 3,
+            4, 5, 6, 7,
+        ];
+        let size = Size::new(4, 2);
+        assert_eq!(Block::<2, 2>::slice_aligned(slice, size, 2), &[]);
+    }
+
+    #[test]
+    fn slice_rect_aligned_full() {
+        #[rustfmt::skip]
+        let slice = &[
+            0, 1, 2, 3,
+            4, 5, 6, 7,
+        ];
+        let size = Size::new(4, 2);
+        assert_eq!(
+            Block::<2, 2>::slice_rect_aligned(slice, size, Rect::from_ltwh(0, 0, 4, 2)),
+            Some(&[0, 1, 2, 3, 4, 5, 6, 7][..])
+        );
+    }
+
+    #[test]
+    fn slice_rect_aligned_partial() {
+        #[rustfmt::skip]
+        let slice = &[
+            0, 1, 2, 3,
+            4, 5, 6, 7,
+        ];
+        let size = Size::new(4, 2);
+        assert_eq!(
+            Block::<2, 2>::slice_rect_aligned(slice, size, Rect::from_ltwh(0, 0, 2, 2)),
+            Some(&[0, 1, 2, 3][..])
+        );
+        assert_eq!(
+            Block::<2, 2>::slice_rect_aligned(slice, size, Rect::from_ltwh(2, 0, 2, 2)),
+            Some(&[4, 5, 6, 7][..])
+        );
+    }
+
+    #[test]
+    fn slice_rect_aligned_out_of_bounds() {
+        #[rustfmt::skip]
+        let slice = &[
+            0, 1, 2, 3,
+            4, 5, 6, 7,
+        ];
+        let size = Size::new(4, 2);
+        assert_eq!(
+            Block::<2, 2>::slice_rect_aligned(slice, size, Rect::from_ltwh(0, 0, 5, 2)),
+            None
+        );
+    }
+
+    #[test]
+    fn slice_rect_unaligned_partial() {
+        #[rustfmt::skip]
+        let slice = &mut [
+            0, 1, 2, 3,
+            4, 5, 6, 7,
+        ];
+        let size = Size::new(4, 2);
+        let rect = Rect::from_ltwh(0, 1, 1, 2);
+        assert_eq!(
+            Block::<2, 2>::slice_rect_aligned_mut(slice, size, rect),
+            None
+        );
+    }
+
+    #[test]
+    fn slice_rect_aligned_mut_full() {
+        #[rustfmt::skip]
+        let slice = &mut [
+            0, 1, 2, 3,
+            4, 5, 6, 7,
+        ];
+        let size = Size::new(4, 2);
+        assert_eq!(
+            Block::<2, 2>::slice_rect_aligned_mut(slice, size, Rect::from_ltwh(0, 0, 4, 2)),
+            Some(&mut [0, 1, 2, 3, 4, 5, 6, 7][..])
+        );
     }
 }

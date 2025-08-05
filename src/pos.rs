@@ -1,4 +1,4 @@
-use core::ops;
+use core::{fmt::Display, ops};
 
 use crate::{
     Size,
@@ -312,6 +312,12 @@ impl<T: SignedInt> Pos<T> {
     };
 }
 
+impl<T: Int> Display for Pos<T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "({}, {})", self.x, self.y)
+    }
+}
+
 impl<T: Int> Default for Pos<T> {
     fn default() -> Self {
         Self::ORIGIN
@@ -471,7 +477,7 @@ pub trait TryFromPos<T: Int>: Sized {
     fn try_from_pos(value: Pos<T>) -> Result<Self, TryFromPosError>;
 }
 
-/// A trait for converting a `Pos<T>` to another type.
+/// A trait for converting a `Pos<T>` from another type.
 pub trait TryIntoPos<T: Int>: Sized {
     /// Returns the type that the `Pos<T>` can be converted to.
     ///

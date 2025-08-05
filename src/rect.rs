@@ -1,6 +1,10 @@
-use core::ops;
+use core::{fmt::Display, ops};
 
-use crate::{HasSize, Pos, Size, int::Int};
+use crate::{
+    HasSize, Pos, Size,
+    int::Int,
+    layout::{RowMajor, Traversal},
+};
 
 /// A macro that creates a rectangle with the given coordinates.
 ///
@@ -384,6 +388,49 @@ impl<T: Int> Rect<T> {
             Rect::EMPTY
         }
     }
+
+    /// Returns an iterator over the positions in the rectangle.
+    ///
+    /// The positions are returned in row-major order, starting from the top-left corner.
+    ///
+    /// For additional traversal methods, see the [`layout`][] module.
+    ///
+    /// [`layout`]: crate::layout
+    pub fn pos_iter(&self) -> impl Iterator<Item = Pos<T>> {
+        RowMajor::iter_pos(*self)
+    }
+
+    /// Returns a sub-rectangle representing a row within this rectangle.
+    ///
+    /// The returned rectangle is guaranteed to be within the bounds of this rectangle.
+    #[must_use]
+    pub fn row_rect(&self, row: usize) -> Rect<T> {
+        let l = self.l;
+        let t = self.t + T::from_usize(row);
+        let r = self.r;
+        let b = t + T::from_usize(1);
+
+        Rect { l, t, r, b }
+    }
+
+    /// Returns a sub-rectangle representing a column within this rectangle.
+    ///
+    /// The returned rectangle is guaranteed to be within the bounds of this rectangle.
+    #[must_use]
+    pub fn col_rect(&self, col: usize) -> Rect<T> {
+        let l = self.l + T::from_usize(col);
+        let t = self.t;
+        let r = l + T::from_usize(1);
+        let b = self.b;
+
+        Rect { l, t, r, b }
+    }
+}
+
+impl<T: Display + Int> Display for Rect<T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "Rect({}, {}, {}, {})", self.l, self.t, self.r, self.b)
+    }
 }
 
 impl<T: Int> HasSize for Rect<T> {
@@ -485,7 +532,10 @@ impl<T: Int> ops::DivAssign<T> for Rect<T> {
 
 #[cfg(test)]
 mod tests {
+    extern crate alloc;
+
     use super::*;
+    use alloc::vec::Vec;
 
     #[test]
     fn rect_macro_ltrb() {
@@ -801,5 +851,40 @@ mod tests {
         assert_eq!(rect.top(), 2);
         assert_eq!(rect.right(), 3);
         assert_eq!(rect.bottom(), 4);
+    }
+
+    #[test]
+    fn pos_iter() {
+        let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
+        let positions: Vec<Pos<i32>> = rect.pos_iter().collect();
+        assert_eq!(
+            positions,
+            &[
+                Pos::new(1, 2),
+                Pos::new(2, 2),
+                Pos::new(1, 3),
+                Pos::new(2, 3)
+            ]
+        );
+    }
+
+    #[test]
+    fn row_rect() {
+        let rect = Rect::from_ltrb(1, 2, 5, 6).unwrap();
+        let row_rect = rect.row_rect(0);
+        assert_eq!(row_rect.left(), 1);
+        assert_eq!(row_rect.top(), 2);
+        assert_eq!(row_rect.right(), 5);
+        assert_eq!(row_rect.bottom(), 3);
+    }
+
+    #[test]
+    fn col_rect() {
+        let rect = Rect::from_ltrb(1, 2, 5, 6).unwrap();
+        let col_rect = rect.col_rect(0);
+        assert_eq!(col_rect.left(), 1);
+        assert_eq!(col_rect.top(), 2);
+        assert_eq!(col_rect.right(), 2);
+        assert_eq!(col_rect.bottom(), 6);
     }
 }
