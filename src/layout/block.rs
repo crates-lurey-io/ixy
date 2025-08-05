@@ -650,7 +650,7 @@ mod tests {
 
     #[test]
     fn slice_aligned_out_of_bounds() {
-        #[rustfmt::skip]    
+        #[rustfmt::skip]
         let slice = &[
             0, 1, 2, 3,
             4, 5, 6, 7,
@@ -714,7 +714,10 @@ mod tests {
         ];
         let size = Size::new(4, 2);
         let rect = Rect::from_ltwh(0, 1, 1, 2);
-        assert_eq!(Block::<2, 2>::slice_rect_aligned_mut(slice, size, rect), None);
+        assert_eq!(
+            Block::<2, 2>::slice_rect_aligned_mut(slice, size, rect),
+            None
+        );
     }
 
     #[test]

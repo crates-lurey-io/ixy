@@ -214,11 +214,7 @@ impl Linear for RowMajor {
         Some(start..end)
     }
 
-    fn slice_rect_aligned<E>(
-        slice: &[E],
-        size: Size,
-        rect: Rect<usize>,
-    ) -> Option<&[E]> {
+    fn slice_rect_aligned<E>(slice: &[E], size: Size, rect: Rect<usize>) -> Option<&[E]> {
         let range = Self::rect_to_range(size, rect)?;
         if range.end > slice.len() {
             return None;
@@ -342,7 +338,7 @@ mod tests {
     fn slice_aligned_in_bounds() {
         #[rustfmt::skip]
         let slice = [
-            0, 1, 2, 3, 
+            0, 1, 2, 3,
             4, 5, 6, 7,
         ];
         let size = Size::new(4, 2);
@@ -354,7 +350,7 @@ mod tests {
     fn slice_aligned_out_of_bounds() {
         #[rustfmt::skip]
         let slice = [
-            0, 1, 2, 3, 
+            0, 1, 2, 3,
             4, 5, 6, 7,
         ];
         let size = Size::new(4, 2);
