@@ -1,4 +1,4 @@
-use core::ops;
+use core::{fmt::Display, ops};
 
 use crate::{
     HasSize, Pos, Size,
@@ -424,6 +424,12 @@ impl<T: Int> Rect<T> {
         let b = self.b;
 
         Rect { l, t, r, b }
+    }
+}
+
+impl<T: Display + Int> Display for Rect<T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "Rect({}, {}, {}, {})", self.l, self.t, self.r, self.b)
     }
 }
 

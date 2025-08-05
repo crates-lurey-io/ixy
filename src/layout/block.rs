@@ -90,8 +90,7 @@ impl<const W: usize, const H: usize, G: Traversal, C: Traversal> Traversal for B
     /// use ixy::{Pos, Rect, Size, layout::{Block, Traversal}};
     ///
     /// let rect = Rect::from_ltwh(0, 0, 4, 4);
-    /// let block = Block::row_major(2, 2);
-    /// let positions: Vec<_> = block.iter_pos(rect).collect();
+    /// let positions: Vec<_> = Block::<2, 2>::iter_pos(rect).collect();
     /// assert_eq!(
     ///    positions,
     ///    &[
@@ -164,9 +163,8 @@ impl<const W: usize, const H: usize, G: Traversal, C: Traversal> Traversal for B
     /// use ixy::{Rect, Size, layout::{Block, Traversal}};
     ///
     /// let rect = Rect::from_ltwh(0, 0, 8, 8);
-    /// let outer_block = Block::row_major(4, 4);
     /// let inner_block = Size::new(2, 2);
-    /// let blocks: Vec<_> = outer_block.iter_rect(rect, inner_block).collect();
+    /// let blocks: Vec<_> = Block::<4, 4>::iter_rect(rect, inner_block).collect();
     /// assert_eq!(
     ///   blocks,
     ///   &[

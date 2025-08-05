@@ -1,4 +1,4 @@
-use core::ops;
+use core::{fmt::Display, ops};
 
 use crate::{
     Size,
@@ -310,6 +310,12 @@ impl<T: SignedInt> Pos<T> {
         x: T::ZERO,
         y: T::NEG_ONE,
     };
+}
+
+impl<T: Int> Display for Pos<T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "({}, {})", self.x, self.y)
+    }
 }
 
 impl<T: Int> Default for Pos<T> {
