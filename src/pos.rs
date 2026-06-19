@@ -584,6 +584,12 @@ impl<T: Int> TryFrom<Pos<T>> for Size {
     }
 }
 
+/// A position using `u16` coordinates — the natural type for terminal grids.
+pub type Pos16 = Pos<u16>;
+
+/// A position using `i32` coordinates — useful for signed offsets and deltas.
+pub type PosI = Pos<i32>;
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -921,5 +927,19 @@ mod tests {
         let p2 = Pos::new(2, 4);
         p1 /= p2;
         assert_eq!(p1, Pos::new(3, 2));
+    }
+
+    #[test]
+    fn pos16_alias() {
+        let p: Pos16 = Pos16::new(1, 2);
+        assert_eq!(p.x, 1u16);
+        assert_eq!(p.y, 2u16);
+    }
+
+    #[test]
+    fn posi_alias() {
+        let p: PosI = PosI::new(1, 2);
+        assert_eq!(p.x, 1i32);
+        assert_eq!(p.y, 2i32);
     }
 }

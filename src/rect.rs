@@ -548,6 +548,12 @@ impl<T: Int> ops::DivAssign<T> for Rect<T> {
     }
 }
 
+/// A rectangle using `u16` coordinates.
+pub type Rect16 = Rect<u16>;
+
+/// A rectangle using `i32` coordinates — the default.
+pub type RectI = Rect<i32>;
+
 #[cfg(test)]
 mod tests {
     extern crate alloc;
@@ -645,6 +651,24 @@ mod tests {
         assert_eq!(rect.top(), 2);
         assert_eq!(rect.right(), 4);
         assert_eq!(rect.bottom(), 6);
+    }
+
+    #[test]
+    fn rect16_alias() {
+        let rect: Rect16 = Rect16::new(1, 2, 3, 4);
+        assert_eq!(rect.left(), 1u16);
+        assert_eq!(rect.top(), 2u16);
+        assert_eq!(rect.width(), 3);
+        assert_eq!(rect.height(), 4);
+    }
+
+    #[test]
+    fn recti_alias() {
+        let rect: RectI = RectI::new(1, 2, 3, 4);
+        assert_eq!(rect.left(), 1i32);
+        assert_eq!(rect.top(), 2i32);
+        assert_eq!(rect.width(), 3);
+        assert_eq!(rect.height(), 4);
     }
 
     #[test]
