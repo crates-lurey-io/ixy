@@ -140,6 +140,14 @@ impl DivAssign<usize> for Size {
     }
 }
 
+use core::fmt;
+
+impl fmt::Display for Size {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}×{}", self.width, self.height)
+    }
+}
+
 /// A type that has a [`Size`].
 pub trait HasSize {
     /// Returns the size of the object.

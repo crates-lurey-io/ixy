@@ -33,6 +33,9 @@ check:
 doc:
     cargo doc --all-features --no-deps --open --lib
 
+semver-checks:
+    cargo tool cargo-semver-checks --baseline-version 0.5.7
+
 doc-gen:
     cargo clean --doc
     cargo doc --no-deps
