@@ -206,10 +206,7 @@ impl<const W: usize, const H: usize, G: Traversal, C: Traversal> Traversal for B
     }
 }
 
-impl<const W: usize, const H: usize, G: Traversal, C: Traversal> Linear for Block<W, H, G, C>
-where
-    G: Linear,
-    C: Linear,
+impl<const W: usize, const H: usize, G: Linear, C: Linear> Linear for Block<W, H, G, C>
 {
     fn pos_to_index(pos: Pos<usize>, width: usize) -> usize {
         let block_x = pos.x / W;
@@ -249,7 +246,7 @@ where
         // - Elements spanning multiple blocks but full-sized
 
         // Check if the rectangle is aligned to the block size
-        if rect.width() % W != 0 || rect.height() % H != 0 {
+        if !rect.width().is_multiple_of(W) || !rect.height().is_multiple_of(H) {
             return None;
         }
 

@@ -58,6 +58,7 @@ macro_rules! rect {
 ///   int b; // y coordinate of the bottom-right corner
 /// }
 /// ```
+#[repr(C)]
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct Rect<T: Int = i32> {
     l: T,
@@ -82,20 +83,37 @@ impl<T: Int> Rect<T> {
         b: T::ZERO,
     };
 
-    /// Creates a new rectangle from the top-left corner and size.
+    /// Creates a rectangle from top-left coordinates and dimensions.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use ixy::Rect;
+    ///
+    /// let rect = Rect::new(1, 2, 3, 4);
+    /// assert_eq!(rect.left(), 1);
+    /// assert_eq!(rect.top(), 2);
+    /// assert_eq!(rect.right(), 4);
+    /// assert_eq!(rect.bottom(), 6);
+    /// ```
+    pub fn new(x: T, y: T, width: usize, height: usize) -> Self {
+        Self::from_ltwh(x, y, width, height)
+    }
+
+    /// Creates a rectangle from a top-left corner position and size.
     ///
     /// ## Examples
     ///
     /// ```rust
     /// use ixy::{Pos, Rect, Size};
     ///
-    /// let rect = Rect::new(Pos::new(1, 2), Size::new(3, 4));
+    /// let rect = Rect::from_tl_size(Pos::new(1, 2), Size::new(3, 4));
     /// assert_eq!(rect.left(), 1);
     /// assert_eq!(rect.top(), 2);
     /// assert_eq!(rect.right(), 4);
     /// assert_eq!(rect.bottom(), 6);
     /// ```
-    pub fn new(top_left: Pos<T>, size: Size) -> Self {
+    pub fn from_tl_size(top_left: Pos<T>, size: Size) -> Self {
         Self::from_ltwh(top_left.x, top_left.y, size.width, size.height)
     }
 
@@ -354,7 +372,7 @@ impl<T: Int> Rect<T> {
     /// assert!(!rect.contains_rect(Rect::from_ltrb(2, 3, 6, 5).unwrap()));
     /// assert!(!rect.contains_rect(Rect::from_ltrb(2, 3, 4, 7).unwrap()));
     /// ```
-    pub fn contains_rect(&self, other: Rect<T>) -> bool {
+    pub fn contains_rect(&self, other: Self) -> bool {
         self.l <= other.l && self.r >= other.r && self.t <= other.t && self.b >= other.b
     }
 
@@ -376,16 +394,16 @@ impl<T: Int> Rect<T> {
     /// assert_eq!(a.intersect(c), Rect::EMPTY);
     /// ```
     #[must_use]
-    pub fn intersect(&self, other: Rect<T>) -> Rect<T> {
+    pub fn intersect(&self, other: Self) -> Self {
         let l = core::cmp::max(self.l, other.l);
         let t = core::cmp::max(self.t, other.t);
         let r = core::cmp::min(self.r, other.r);
         let b = core::cmp::min(self.b, other.b);
 
         if l < r && t < b {
-            Rect { l, t, r, b }
+            Self { l, t, r, b }
         } else {
-            Rect::EMPTY
+            Self::EMPTY
         }
     }
 
@@ -404,26 +422,26 @@ impl<T: Int> Rect<T> {
     ///
     /// The returned rectangle is guaranteed to be within the bounds of this rectangle.
     #[must_use]
-    pub fn row_rect(&self, row: usize) -> Rect<T> {
+    pub fn row_rect(&self, row: usize) -> Self {
         let l = self.l;
         let t = self.t + T::from_usize(row);
         let r = self.r;
         let b = t + T::from_usize(1);
 
-        Rect { l, t, r, b }
+        Self { l, t, r, b }
     }
 
     /// Returns a sub-rectangle representing a column within this rectangle.
     ///
     /// The returned rectangle is guaranteed to be within the bounds of this rectangle.
     #[must_use]
-    pub fn col_rect(&self, col: usize) -> Rect<T> {
+    pub fn col_rect(&self, col: usize) -> Self {
         let l = self.l + T::from_usize(col);
         let t = self.t;
         let r = l + T::from_usize(1);
         let b = self.b;
 
-        Rect { l, t, r, b }
+        Self { l, t, r, b }
     }
 }
 
@@ -434,8 +452,8 @@ impl<T: Display + Int> Display for Rect<T> {
 }
 
 impl<T: Int> HasSize for Rect<T> {
-    fn size(&self) -> crate::Size {
-        crate::Size {
+    fn size(&self) -> Size {
+        Size {
             width: self.width(),
             height: self.height(),
         }
@@ -601,7 +619,37 @@ mod tests {
     }
 
     #[test]
+    fn new_xywh() {
+        let rect = Rect::new(1, 2, 3, 4);
+        assert_eq!(rect.left(), 1);
+        assert_eq!(rect.top(), 2);
+        assert_eq!(rect.right(), 4);
+        assert_eq!(rect.bottom(), 6);
+    }
+
+    #[test]
+    fn new_xywh_zero() {
+        let rect = Rect::new(0, 0, 0, 0);
+        assert!(rect.is_empty());
+        assert_eq!(rect.left(), 0);
+        assert_eq!(rect.top(), 0);
+        assert_eq!(rect.right(), 0);
+        assert_eq!(rect.bottom(), 0);
+    }
+
+    #[test]
+    fn from_tl_size() {
+        use crate::Size;
+        let rect = Rect::from_tl_size(Pos::new(1, 2), Size::new(3, 4));
+        assert_eq!(rect.left(), 1);
+        assert_eq!(rect.top(), 2);
+        assert_eq!(rect.right(), 4);
+        assert_eq!(rect.bottom(), 6);
+    }
+
+    #[test]
     fn c_layout() {
+        #[repr(C)]
         struct CRect {
             l: i32,
             t: i32,
@@ -669,7 +717,7 @@ mod tests {
         let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
         assert_eq!(
             rect.size(),
-            crate::Size {
+            Size {
                 width: 2,
                 height: 2
             }

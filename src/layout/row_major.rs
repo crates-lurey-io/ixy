@@ -66,7 +66,7 @@ impl<T: Int> Iterator for IterBlockRowMajor<T> {
     type Item = Rect<T>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let block = Rect::new(self.current, self.size);
+        let block = Rect::from_tl_size(self.current, self.size);
         self.current.x += T::from_usize(self.size.width);
 
         if self.current.x >= self.bounds.right() {
@@ -177,7 +177,7 @@ impl Traversal for RowMajor {
 impl RowMajor {
     const fn axis_to_range<E>(slice: &[E], size: Size, axis: usize) -> Range<usize> {
         assert!(
-            slice.len() % size.area() == 0,
+            slice.len().is_multiple_of(size.area()),
             "slice length must be a multiple of size.width * size.height"
         );
         let start = axis * size.width;

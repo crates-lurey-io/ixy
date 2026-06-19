@@ -1,13 +1,15 @@
+#![allow(unreachable_pub)]
+
 use crate::int::Int;
 
 /// Used to seal traits for the crate.
 #[doc(hidden)]
-pub(super) trait Sealed {}
+pub trait Sealed {}
 
 /// Calculates the greatest common divisor (GCD) of two integers.
 ///
 /// The result is always positive.
-pub(super) fn gcd<T: Int>(a: T, b: T) -> T {
+pub fn gcd<T: Int>(a: T, b: T) -> T {
     // Use Stein's algorithm for GCD.
     if a == T::ZERO || b == T::ZERO {
         return (a | b).abs();
@@ -40,7 +42,7 @@ pub(super) fn gcd<T: Int>(a: T, b: T) -> T {
 }
 
 /// Returns an approximation of the integer square root of an integer.
-pub(super) fn isqrt<T: Int>(n: T) -> T {
+pub fn isqrt<T: Int>(n: T) -> T {
     if n <= T::ZERO {
         return T::ZERO;
     }

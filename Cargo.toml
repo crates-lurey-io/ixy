@@ -7,8 +7,19 @@ description = "A minimal, no-std compatible crate for 2D integer geometry"
 repository = "https://github.com/crates-lurey-io/ixy"
 version = "0.6.0-alpha.3"
 
+[lints.rust]
+missing_docs = "warn"
+unreachable_pub = "warn"
+unused_qualifications = "warn"
+
 [lints.clippy]
-pedantic = "deny"
+all = { level = "deny", priority = -1 }
+pedantic = { level = "deny", priority = -1 }
+nursery = { level = "deny", priority = -1 }
+must_use_candidate = "deny"
+missing_errors_doc = "deny"
+missing_panics_doc = "deny"
+module_name_repetitions = "allow"
 
 [workspace]
 members = ["tools/cargo-bin"]

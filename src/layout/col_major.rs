@@ -68,7 +68,7 @@ impl<T: Int> Iterator for IterBlockColMajor<T> {
         if self.current.x >= self.bounds.right() {
             return None;
         }
-        let block = Rect::new(self.current, self.size);
+        let block = Rect::from_tl_size(self.current, self.size);
         self.current.y += T::from_usize(self.size.height);
 
         if self.current.y >= self.bounds.bottom() {
@@ -173,7 +173,7 @@ impl Traversal for ColumnMajor {
 impl ColumnMajor {
     const fn axis_to_range<E>(slice: &[E], size: Size, axis: usize) -> Range<usize> {
         assert!(
-            slice.len() % size.area() == 0,
+            slice.len().is_multiple_of(size.area()),
             "slice length must be a multiple of size.width * size.height"
         );
         let start = axis * size.height;
@@ -289,8 +289,7 @@ mod tests {
     #[test]
     fn column_major_exact_size_iter_pos_len() {
         let rect = Rect::from_ltwh(0, 0, 3, 2);
-        let iter: Vec<_> = ColumnMajor::iter_pos(rect).collect();
-        assert_eq!(iter.len(), 6);
+        assert_eq!(ColumnMajor::iter_pos(rect).count(), 6);
     }
 
     #[test]

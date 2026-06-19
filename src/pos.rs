@@ -335,10 +335,10 @@ impl<T: SignedInt> ops::Neg for Pos<T> {
     }
 }
 
-impl<T: Int> ops::Add<Pos<T>> for Pos<T> {
+impl<T: Int> ops::Add<Self> for Pos<T> {
     type Output = Self;
 
-    fn add(self, rhs: Pos<T>) -> Self::Output {
+    fn add(self, rhs: Self) -> Self::Output {
         Self {
             x: self.x + rhs.x,
             y: self.y + rhs.y,
@@ -346,17 +346,17 @@ impl<T: Int> ops::Add<Pos<T>> for Pos<T> {
     }
 }
 
-impl<T: Int> ops::AddAssign<Pos<T>> for Pos<T> {
-    fn add_assign(&mut self, rhs: Pos<T>) {
+impl<T: Int> ops::AddAssign<Self> for Pos<T> {
+    fn add_assign(&mut self, rhs: Self) {
         self.x += rhs.x;
         self.y += rhs.y;
     }
 }
 
-impl<T: Int> ops::Sub<Pos<T>> for Pos<T> {
+impl<T: Int> ops::Sub<Self> for Pos<T> {
     type Output = Self;
 
-    fn sub(self, rhs: Pos<T>) -> Self::Output {
+    fn sub(self, rhs: Self) -> Self::Output {
         Self {
             x: self.x - rhs.x,
             y: self.y - rhs.y,
@@ -364,8 +364,8 @@ impl<T: Int> ops::Sub<Pos<T>> for Pos<T> {
     }
 }
 
-impl<T: Int> ops::SubAssign<Pos<T>> for Pos<T> {
-    fn sub_assign(&mut self, rhs: Pos<T>) {
+impl<T: Int> ops::SubAssign<Self> for Pos<T> {
+    fn sub_assign(&mut self, rhs: Self) {
         self.x -= rhs.x;
         self.y -= rhs.y;
     }
@@ -389,10 +389,10 @@ impl<T: Int> ops::MulAssign<T> for Pos<T> {
     }
 }
 
-impl<T: Int> ops::Mul<Pos<T>> for Pos<T> {
+impl<T: Int> ops::Mul<Self> for Pos<T> {
     type Output = Self;
 
-    fn mul(self, rhs: Pos<T>) -> Self::Output {
+    fn mul(self, rhs: Self) -> Self::Output {
         Self {
             x: self.x * rhs.x,
             y: self.y * rhs.y,
@@ -400,8 +400,8 @@ impl<T: Int> ops::Mul<Pos<T>> for Pos<T> {
     }
 }
 
-impl<T: Int> ops::MulAssign<Pos<T>> for Pos<T> {
-    fn mul_assign(&mut self, rhs: Pos<T>) {
+impl<T: Int> ops::MulAssign<Self> for Pos<T> {
+    fn mul_assign(&mut self, rhs: Self) {
         self.x *= rhs.x;
         self.y *= rhs.y;
     }
@@ -425,10 +425,10 @@ impl<T: Int> ops::DivAssign<T> for Pos<T> {
     }
 }
 
-impl<T: Int> ops::Div<Pos<T>> for Pos<T> {
+impl<T: Int> ops::Div<Self> for Pos<T> {
     type Output = Self;
 
-    fn div(self, rhs: Pos<T>) -> Self::Output {
+    fn div(self, rhs: Self) -> Self::Output {
         Self {
             x: self.x / rhs.x,
             y: self.y / rhs.y,
@@ -436,8 +436,8 @@ impl<T: Int> ops::Div<Pos<T>> for Pos<T> {
     }
 }
 
-impl<T: Int> ops::DivAssign<Pos<T>> for Pos<T> {
-    fn div_assign(&mut self, rhs: Pos<T>) {
+impl<T: Int> ops::DivAssign<Self> for Pos<T> {
+    fn div_assign(&mut self, rhs: Self) {
         self.x /= rhs.x;
         self.y /= rhs.y;
     }
@@ -501,28 +501,28 @@ where
 impl<T: Int> AsRef<[T; 2]> for Pos<T> {
     fn as_ref(&self) -> &[T; 2] {
         // SAFETY: Pos<T> is #[repr(C)] and has the same layout as [T; 2]
-        unsafe { &*core::ptr::from_ref::<Pos<T>>(self).cast::<[T; 2]>() }
+        unsafe { &*core::ptr::from_ref::<Self>(self).cast::<[T; 2]>() }
     }
 }
 
 impl<T: Int> AsRef<(T, T)> for Pos<T> {
     fn as_ref(&self) -> &(T, T) {
         // SAFETY: Pos<T> is #[repr(C)] and has the same layout as (T, T)
-        unsafe { &*core::ptr::from_ref::<Pos<T>>(self).cast::<(T, T)>() }
+        unsafe { &*core::ptr::from_ref::<Self>(self).cast::<(T, T)>() }
     }
 }
 
 impl<T: Int> AsMut<[T; 2]> for Pos<T> {
     fn as_mut(&mut self) -> &mut [T; 2] {
         // SAFETY: Pos<T> is #[repr(C)] and has the same layout as [T; 2]
-        unsafe { &mut *core::ptr::from_mut::<Pos<T>>(self).cast::<[T; 2]>() }
+        unsafe { &mut *core::ptr::from_mut::<Self>(self).cast::<[T; 2]>() }
     }
 }
 
 impl<T: Int> AsMut<(T, T)> for Pos<T> {
     fn as_mut(&mut self) -> &mut (T, T) {
         // SAFETY: Pos<T> is #[repr(C)] and has the same layout as (T, T)
-        unsafe { &mut *(core::ptr::from_mut::<Pos<T>>(self)).cast::<(T, T)>() }
+        unsafe { &mut *(core::ptr::from_mut::<Self>(self)).cast::<(T, T)>() }
     }
 }
 
@@ -537,7 +537,7 @@ impl<S: Int, T: Int + TryFrom<S>> TryFromPos<S> for Pos<T> {
     fn try_from_pos(value: Pos<S>) -> Result<Self, TryFromPosError> {
         let x = T::try_from(value.x).map_err(|_| TryFromPosError::OutOfRange)?;
         let y = T::try_from(value.y).map_err(|_| TryFromPosError::OutOfRange)?;
-        Ok(Pos::new(x, y))
+        Ok(Self::new(x, y))
     }
 }
 
@@ -553,7 +553,7 @@ impl<T: Int> TryFrom<Pos<T>> for Size {
             .y
             .checked_to_usize()
             .ok_or(TryFromPosError::OutOfRange)?;
-        Ok(Size::new(width, height))
+        Ok(Self::new(width, height))
     }
 }
 
@@ -563,6 +563,7 @@ mod tests {
 
     #[test]
     fn layout_is_c_struct() {
+        #[repr(C)]
         struct CPos {
             x: i32,
             y: i32,
