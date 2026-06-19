@@ -262,6 +262,33 @@ impl<T: Int> Pos<T> {
             }
         }
     }
+
+    /// Compares two positions in row-major order (y primary, then x).
+    ///
+    /// This is the natural ordering for grid iteration: top-to-bottom, left-to-right within each
+    /// row. Contrast with the [`Ord`] implementation, which is lexicographic (x primary).
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use ixy::Pos;
+    ///
+    /// // Row-major: y first, then x
+    /// assert_eq!(
+    ///     Pos::new(1, 2).cmp_row_major(&Pos::new(0, 3)),
+    ///     core::cmp::Ordering::Less
+    /// );
+    ///
+    /// // Lexicographic (Ord): x first, then y — opposite result
+    /// assert_eq!(
+    ///     Pos::new(1, 2).cmp(&Pos::new(0, 3)),
+    ///     core::cmp::Ordering::Greater
+    /// );
+    /// ```
+    #[must_use]
+    pub fn cmp_row_major(&self, other: &Self) -> core::cmp::Ordering {
+        self.y.cmp(&other.y).then(self.x.cmp(&other.x))
+    }
 }
 
 impl<T: SignedInt> Pos<T> {
@@ -591,6 +618,41 @@ mod tests {
         assert!(Pos::new(1, 2) < Pos::new(2, 2));
         assert!(Pos::new(2, 2) > Pos::new(1, 2));
         assert!(Pos::new(2, 1) > Pos::new(1, 2));
+    }
+
+    #[test]
+    fn cmp_row_major_y_primary() {
+        // Same x, different y: row-major puts smaller y first
+        assert_eq!(
+            Pos::new(5, 2).cmp_row_major(&Pos::new(5, 3)),
+            core::cmp::Ordering::Less
+        );
+    }
+
+    #[test]
+    fn cmp_row_major_x_secondary() {
+        // Same y: falls through to x comparison
+        assert_eq!(
+            Pos::new(1, 3).cmp_row_major(&Pos::new(2, 3)),
+            core::cmp::Ordering::Less
+        );
+    }
+
+    #[test]
+    fn cmp_row_major_differs_from_ord() {
+        // Row-major (y first) vs lexicographic (x first)
+        let a = Pos::new(1, 2);
+        let b = Pos::new(0, 3);
+        assert_eq!(a.cmp_row_major(&b), core::cmp::Ordering::Less);   // y: 2 < 3
+        assert_eq!(a.cmp(&b), core::cmp::Ordering::Greater);          // x: 1 > 0
+    }
+
+    #[test]
+    fn cmp_row_major_equal() {
+        assert_eq!(
+            Pos::new(4, 5).cmp_row_major(&Pos::new(4, 5)),
+            core::cmp::Ordering::Equal
+        );
     }
 
     #[test]
