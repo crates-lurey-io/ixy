@@ -10,10 +10,7 @@ use crate::{
 ///
 /// Each block has a fixed size (that may be defined at runtime), and is traversed using layout `G`
 /// for each block, and layout `C` for each cell within the block; by default, both are `RowMajor`
-/// but can be customized using the [`with_grid`] and [`with_cell`] methods.
-///
-/// [`with_grid`]: Block::with_grid
-/// [`with_cell`]: Block::with_cell
+/// but can be customized via the generic parameters `G` (grid layout) and `C` (cell layout).
 ///
 /// For example, `Block<2, 2, RowMajor, RowMajor>` (a block-size of 2x2, with row-major traversals):
 ///

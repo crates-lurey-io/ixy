@@ -13,6 +13,7 @@ This project uses [`just`][] to run commands the same way as the CI:
 - `cargo just check` to check formatting and lints.
 - `cargo just coverage` to generate and preview code coverage.
 - `cargo just doc` to generate and preview docs.
+- `cargo just semver-checks` to verify no accidental breaking changes.
 - `cargo just test` to run tests.
 
 [`just`]: https://crates.io/crates/just

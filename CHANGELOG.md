@@ -7,22 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.6.0] - Unreleased
 
-Major change to the layout system, introducing a new `Block` layout type.
+Major redesign of `Rect` internal storage and API cleanup, laying groundwork for v1.0.
 
 ### Added
 
+- `Rect::new(x, y, width, height)` — primary constructor matching game framework convention
+- `Rect::from_tl_size(Pos, Size)` — renamed from `Rect::new(Pos, Size)`
+- `Rect::width_usize()` / `Rect::height_usize()` — for indexing use
+- `Pos::cmp_row_major()` — y-primary comparison for grid iteration
+- `impl Display for Size` — formats as `10×20`
+- Type aliases: `Pos16`, `PosI` for positions, `Rect16`, `RectI` for rectangles
+- Optional `serde` feature (`serde = ["dep:serde"]`)
+- `cargo-semver-checks` in CI
 - `Block` layout, which stores data in continuous fixed-size (`W x H`) blocks
+- `AGENTS.md` — guidelines for LLM contributors
 
 ### Changed
 
+- **`Rect` internal storage changed** from `(l, t, r, b)` to `(x, y, w, h)` — all fields are `T`
+- `Rect::width()` and `Rect::height()` now return `T` (was `usize`)
+- `Rect::from_ltrb_unchecked()` is no longer `unsafe` — uses `debug_assert!`
+- Removed `T: Int` bound from `Pos` and `Rect` struct definitions (`C-STRUCT-BOUNDS`)
+- `Rect::new(Pos, Size)` renamed to `Rect::from_tl_size(Pos, Size)`
 - `Layout` has been split into 2 traits: 
   - `Layout` for iterating over positions, rectangles, and elements
   - `Linear` for an (optional) optimization of linear-aligned data
 - Layouts are now `&self` instead of static-only, allowing for dynamic dispatch
+- License changed to `MIT OR Apache-2.0` (was `MIT`)
+- Lint configuration aligned with rg: added `rust.nursery`, `must_use_candidate`, more
 
 ### Removed
 
+- `unsafe` code from production codebase (`forbid(unsafe_code)`)
+- `AsRef` / `AsMut` impls on `Pos` (depended on `unsafe` pointer casts)
 - `Rect::iter_pos` and related methods; use the layout traits instead
+- `.gemini/GEMINI.md` — replaced by `AGENTS.md`
 
 ## [0.5.7] - 2025-08-01
 
