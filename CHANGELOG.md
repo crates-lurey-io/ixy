@@ -5,12 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.6.0-alpha.5] - 2026-06-19
+## [0.6.0-alpha.6] - 2026-06-19
 
 Major redesign of `Rect` internal storage and API cleanup, laying groundwork for v1.0.
 
 ### Added
 
+- `Pos::cmp_lexicographic()` — x-primary ordering (replaces old `Ord` behavior)
 - `Rect::new(x, y, width, height)` — primary constructor matching game framework convention
 - `Rect::from_tl_size(Pos, Size)` — renamed from `Rect::new(Pos, Size)`
 - `Rect::width_usize()` / `Rect::height_usize()` — for indexing use
@@ -24,6 +25,7 @@ Major redesign of `Rect` internal storage and API cleanup, laying groundwork for
 
 ### Changed
 
+- **`Pos::Ord` is now row-major** (y-primary) instead of lexicographic (x-primary); use `cmp_lexicographic()` for the old behavior
 - **`Rect` internal storage changed** from `(l, t, r, b)` to `(x, y, w, h)` — all fields are `T`
 - `Rect::width()` and `Rect::height()` now return `T` (was `usize`)
 - `Rect::from_ltrb_unchecked()` is no longer `unsafe` — uses `debug_assert!`

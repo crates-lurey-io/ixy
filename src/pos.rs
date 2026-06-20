@@ -34,15 +34,18 @@ macro_rules! pos {
 ///
 /// ## Ordering
 ///
-/// Points are ordered _lexographically_, or the point with the smaller `x` coordinate comes first.
+/// Points are ordered _row-major_, or the point with the smaller `y` coordinate comes first.
 ///
-/// If two points have the same `x` coordinate, the point with the smaller `y` coordinate is first.
+/// If two points have the same `y` coordinate, the point with the smaller `x` coordinate is first.
+///
+/// This is the natural ordering for grid iteration: top-to-bottom, left-to-right within each row.
+/// For lexicographic (x-primary) ordering, use [`Pos::cmp_lexicographic`].
 ///
 /// ```rust
 /// use ixy::Pos;
 ///
-/// assert!(Pos::new(1, 2) < Pos::new(2, 1));
-/// assert!(Pos::new(2, 2) > Pos::new(1, 2));
+/// assert!(Pos::new(0, 3) > Pos::new(1, 2));   // y-primary: 3 > 2
+/// assert!(Pos::new(1, 2) > Pos::new(2, 1));   // y-primary: 2 > 1
 /// ```
 ///
 /// ## Examples
@@ -66,7 +69,7 @@ macro_rules! pos {
 /// assert_eq!(p.x, 3);
 /// assert_eq!(p.y, 4);
 /// ```
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[repr(C)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Pos<T = i32> {
@@ -265,29 +268,45 @@ impl<T: Int> Pos<T> {
 
     /// Compares two positions in row-major order (y primary, then x).
     ///
-    /// This is the natural ordering for grid iteration: top-to-bottom, left-to-right within each
-    /// row. Contrast with the [`Ord`] implementation, which is lexicographic (x primary).
+    /// This is the default [`Ord`] ordering for [`Pos`]. Provided as an explicit method for use
+    /// when the ordering matters.
+    ///
+    /// For lexicographic (x-primary) ordering, use [`Pos::cmp_lexicographic`].
     ///
     /// ## Examples
     ///
     /// ```rust
     /// use ixy::Pos;
     ///
-    /// // Row-major: y first, then x
+    /// // Row-major: y first, then x — matches Ord::cmp
     /// assert_eq!(
     ///     Pos::new(1, 2).cmp_row_major(&Pos::new(0, 3)),
-    ///     core::cmp::Ordering::Less
-    /// );
-    ///
-    /// // Lexicographic (Ord): x first, then y — opposite result
-    /// assert_eq!(
     ///     Pos::new(1, 2).cmp(&Pos::new(0, 3)),
-    ///     core::cmp::Ordering::Greater
     /// );
     /// ```
     #[must_use]
     pub fn cmp_row_major(&self, other: &Self) -> core::cmp::Ordering {
-        self.y.cmp(&other.y).then(self.x.cmp(&other.x))
+        self.cmp(other)
+    }
+
+    /// Compares two positions in lexicographic order (x primary, then y).
+    ///
+    /// Contrast with the default [`Ord`] implementation, which is row-major (y primary).
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use ixy::Pos;
+    ///
+    /// // Lexicographic: x first, then y
+    /// assert_eq!(
+    ///     Pos::new(1, 2).cmp_lexicographic(&Pos::new(0, 3)),
+    ///     core::cmp::Ordering::Greater
+    /// );
+    /// ```
+    #[must_use]
+    pub fn cmp_lexicographic(&self, other: &Self) -> core::cmp::Ordering {
+        self.x.cmp(&other.x).then(self.y.cmp(&other.y))
     }
 }
 
@@ -342,6 +361,22 @@ impl<T: SignedInt> Pos<T> {
 impl<T: Int> Display for Pos<T> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "({}, {})", self.x, self.y)
+    }
+}
+
+impl<T: Int> PartialOrd for Pos<T> {
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<T: Int> Ord for Pos<T> {
+    /// Compares two positions in **row-major** order (y primary, then x).
+    ///
+    /// This is the natural ordering for grid iteration: top-to-bottom, left-to-right within each
+    /// row. For lexicographic (x-primary) ordering, use [`Pos::cmp_lexicographic`].
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
+        self.y.cmp(&other.y).then(self.x.cmp(&other.x))
     }
 }
 
@@ -593,12 +628,12 @@ mod tests {
     }
 
     #[test]
-    fn ord() {
-        assert!(Pos::new(1, 2) < Pos::new(2, 1));
-        assert!(Pos::new(1, 2) < Pos::new(1, 3));
-        assert!(Pos::new(1, 2) < Pos::new(2, 2));
-        assert!(Pos::new(2, 2) > Pos::new(1, 2));
-        assert!(Pos::new(2, 1) > Pos::new(1, 2));
+    fn ord_row_major() {
+        // Row-major: y primary, then x
+        assert!(Pos::new(1, 2) < Pos::new(1, 3));   // y: 2 < 3
+        assert!(Pos::new(1, 2) < Pos::new(2, 2));   // y equal, x: 1 < 2
+        assert!(Pos::new(0, 3) > Pos::new(1, 2));   // y: 3 > 2
+        assert!(Pos::new(2, 1) < Pos::new(1, 2));   // y: 1 < 2
     }
 
     #[test]
@@ -620,12 +655,38 @@ mod tests {
     }
 
     #[test]
-    fn cmp_row_major_differs_from_ord() {
-        // Row-major (y first) vs lexicographic (x first)
+    fn cmp_row_major_matches_ord() {
+        // cmp_row_major delegates to Ord::cmp
         let a = Pos::new(1, 2);
         let b = Pos::new(0, 3);
-        assert_eq!(a.cmp_row_major(&b), core::cmp::Ordering::Less);   // y: 2 < 3
-        assert_eq!(a.cmp(&b), core::cmp::Ordering::Greater);          // x: 1 > 0
+        assert_eq!(a.cmp_row_major(&b), a.cmp(&b));
+    }
+
+    #[test]
+    fn cmp_lexicographic_x_primary() {
+        // Same y, different x: lexicographic puts smaller x first
+        assert_eq!(
+            Pos::new(2, 5).cmp_lexicographic(&Pos::new(1, 5)),
+            core::cmp::Ordering::Greater
+        );
+    }
+
+    #[test]
+    fn cmp_lexicographic_y_secondary() {
+        // Same x: falls through to y comparison
+        assert_eq!(
+            Pos::new(3, 1).cmp_lexicographic(&Pos::new(3, 2)),
+            core::cmp::Ordering::Less
+        );
+    }
+
+    #[test]
+    fn cmp_lexicographic_differs_from_ord() {
+        // Lexicographic (x first) vs row-major (y first)
+        let a = Pos::new(1, 2);
+        let b = Pos::new(0, 3);
+        assert_eq!(a.cmp_lexicographic(&b), core::cmp::Ordering::Greater);  // x: 1 > 0
+        assert_eq!(a.cmp(&b), core::cmp::Ordering::Less);                  // y: 2 < 3
     }
 
     #[test]
