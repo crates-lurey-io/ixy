@@ -69,7 +69,7 @@ macro_rules! pos {
 /// assert_eq!(p.x, 3);
 /// assert_eq!(p.y, 4);
 /// ```
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[repr(C)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Pos<T = i32> {
