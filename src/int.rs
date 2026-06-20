@@ -115,7 +115,7 @@ pub trait Int:
         #[cfg(not(coverage))]
         {
             Self::checked_from_usize(value).unwrap_or_else(|| {
-                debug_assert!(value <= Self::MAX.to_usize(), "{MSG}",);
+                debug_assert!(value <= Self::MAX.to_usize(), "{MSG}");
                 Self::saturating_from_usize(value)
             })
         }
