@@ -31,6 +31,7 @@ module_name_repetitions = "allow"
 members = ["tools/cargo-bin"]
 
 [workspace.metadata.bin]
+cargo-binstall = { version = "1.10.0", locked = true }
 cargo-nextest = { version = "0.9.98", locked = true }
 cargo-llvm-cov = { version = "0.6.16", locked = true }
 cargo-hack = { version = "0.6.0", locked = true }

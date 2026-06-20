@@ -16,11 +16,11 @@ format: format-fix
 
 format-check:
     cargo fmt --all -- --check
-    -cargo tool taplo format --check
+    cargo tool taplo format --check
 
 format-fix:
     cargo fmt --all
-    -cargo tool taplo format
+    cargo tool taplo format
 
 fix:
     cargo just format-fix
