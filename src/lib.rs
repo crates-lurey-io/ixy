@@ -22,6 +22,7 @@
 
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 #![no_std]
+#![forbid(unsafe_code)]
 
 pub mod int;
 pub mod layout;

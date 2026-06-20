@@ -705,6 +705,8 @@ mod tests {
 
     #[test]
     fn c_layout() {
+        use core::mem::{offset_of, size_of};
+
         #[repr(C)]
         struct CRect {
             x: i32,
@@ -713,19 +715,11 @@ mod tests {
             h: i32,
         }
 
-        let rect = Rect::<i32> {
-            x: 1,
-            y: 2,
-            w: 2,
-            h: 2,
-        };
-
-        #[allow(unsafe_code, reason = "Test")]
-        let c_rect: CRect = unsafe { core::mem::transmute(rect) };
-        assert_eq!(c_rect.x, 1);
-        assert_eq!(c_rect.y, 2);
-        assert_eq!(c_rect.w, 2);
-        assert_eq!(c_rect.h, 2);
+        assert_eq!(size_of::<Rect<i32>>(), size_of::<CRect>());
+        assert_eq!(offset_of!(Rect<i32>, x), offset_of!(CRect, x));
+        assert_eq!(offset_of!(Rect<i32>, y), offset_of!(CRect, y));
+        assert_eq!(offset_of!(Rect<i32>, w), offset_of!(CRect, w));
+        assert_eq!(offset_of!(Rect<i32>, h), offset_of!(CRect, h));
     }
 
     #[test]

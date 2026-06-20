@@ -525,33 +525,7 @@ where
     }
 }
 
-impl<T: Int> AsRef<[T; 2]> for Pos<T> {
-    fn as_ref(&self) -> &[T; 2] {
-        // SAFETY: Pos<T> is #[repr(C)] and has the same layout as [T; 2]
-        unsafe { &*core::ptr::from_ref::<Self>(self).cast::<[T; 2]>() }
-    }
-}
 
-impl<T: Int> AsRef<(T, T)> for Pos<T> {
-    fn as_ref(&self) -> &(T, T) {
-        // SAFETY: Pos<T> is #[repr(C)] and has the same layout as (T, T)
-        unsafe { &*core::ptr::from_ref::<Self>(self).cast::<(T, T)>() }
-    }
-}
-
-impl<T: Int> AsMut<[T; 2]> for Pos<T> {
-    fn as_mut(&mut self) -> &mut [T; 2] {
-        // SAFETY: Pos<T> is #[repr(C)] and has the same layout as [T; 2]
-        unsafe { &mut *core::ptr::from_mut::<Self>(self).cast::<[T; 2]>() }
-    }
-}
-
-impl<T: Int> AsMut<(T, T)> for Pos<T> {
-    fn as_mut(&mut self) -> &mut (T, T) {
-        // SAFETY: Pos<T> is #[repr(C)] and has the same layout as (T, T)
-        unsafe { &mut *(core::ptr::from_mut::<Self>(self)).cast::<(T, T)>() }
-    }
-}
 
 /// An error type for when a `Pos<T>` cannot be converted to another type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -596,18 +570,19 @@ mod tests {
 
     #[test]
     fn layout_is_c_struct() {
+        // Verifies that Pos and a #[repr(C)] struct with the same fields share the same
+        // size and field offsets, ensuring the documented C layout guarantee holds.
+        use core::mem::{offset_of, size_of};
+
         #[repr(C)]
         struct CPos {
             x: i32,
             y: i32,
         }
 
-        let pos = Pos::<i32> { x: 1, y: 2 };
-
-        #[allow(unsafe_code, reason = "Test")]
-        let c_pos: CPos = unsafe { core::mem::transmute(pos) };
-        assert_eq!(c_pos.x, 1);
-        assert_eq!(c_pos.y, 2);
+        assert_eq!(size_of::<Pos<i32>>(), size_of::<CPos>());
+        assert_eq!(offset_of!(Pos<i32>, x), offset_of!(CPos, x));
+        assert_eq!(offset_of!(Pos<i32>, y), offset_of!(CPos, y));
     }
 
     #[test]
@@ -780,39 +755,6 @@ mod tests {
         let source: Pos<u16> = Pos::new(7000, 8000);
         let result: Result<Pos<u8>, TryFromPosError> = source.try_into_pos();
         assert!(result.is_err());
-    }
-
-    #[test]
-    fn as_ref_array() {
-        let pos = Pos::new(3, 4);
-        let arr: &[i32; 2] = pos.as_ref();
-        assert_eq!(arr, &[3, 4]);
-    }
-
-    #[test]
-    fn as_mut_array() {
-        let mut pos = Pos::new(3, 4);
-        let arr: &mut [i32; 2] = pos.as_mut();
-        arr[0] = 5;
-        arr[1] = 6;
-        assert_eq!(pos, Pos::new(5, 6));
-    }
-
-    #[test]
-    fn as_ref_tuple() {
-        let pos = Pos::new(3, 4);
-        let (x, y) = pos.as_ref();
-        assert_eq!(x, &3);
-        assert_eq!(y, &4);
-    }
-
-    #[test]
-    fn as_mut_tuple() {
-        let mut pos = Pos::new(3, 4);
-        let (x, y) = pos.as_mut();
-        *x = 5;
-        *y = 6;
-        assert_eq!(pos, Pos::new(5, 6));
     }
 
     #[test]
