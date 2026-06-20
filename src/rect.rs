@@ -29,14 +29,14 @@ macro_rules! rect {
         let t = if tl.y < br.y { tl.y } else { br.y };
         let r = if tl.x < br.x { br.x } else { tl.x };
         let b = if tl.y < br.y { br.y } else { tl.y };
-        unsafe { $crate::Rect::from_ltrb_unchecked(l, t, r, b) }
+        $crate::Rect::from_ltrb_unchecked(l, t, r, b)
     }};
     ($l:expr, $t:expr, $r:expr, $b:expr) => {{
         let l = if $l < $r { $l } else { $r };
         let t = if $t < $b { $t } else { $b };
         let r = if $l < $r { $r } else { $l };
         let b = if $t < $b { $b } else { $t };
-        unsafe { $crate::Rect::from_ltrb_unchecked(l, t, r, b) }
+        $crate::Rect::from_ltrb_unchecked(l, t, r, b)
     }};
 }
 
@@ -46,27 +46,26 @@ macro_rules! rect {
 ///
 /// ## Layout
 ///
-/// Each `Rect<T>` is defined by two points, the top-left and bottom-right corners.
+/// Each `Rect<T>` is defined as an origin point `(x, y)` and dimensions `(w, h)`.
 ///
 /// The layout of `Rect<T>` is guaranteed to be the same as a C struct with four fields:
 ///
 /// ```c
 /// struct Rect {
-///   int l; // x coordinate of the top-left corner
-///   int t; // y coordinate of the top-left corner
-///   int r; // x coordinate of the bottom-right corner
-///   int b; // y coordinate of the bottom-right corner
+///   int x;
+///   int y;
+///   int w;
+///   int h;
 /// }
 /// ```
 #[repr(C)]
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[allow(clippy::unsafe_derive_deserialize)]
 pub struct Rect<T = i32> {
-    l: T,
-    t: T,
-    r: T,
-    b: T,
+    x: T,
+    y: T,
+    w: T,
+    h: T,
 }
 
 /// Error type for rectangle operations.
@@ -79,10 +78,10 @@ pub enum RectError {
 impl<T: Int> Rect<T> {
     /// An empty rectangle (e.g. a `0x0` region at the origin).
     pub const EMPTY: Self = Self {
-        l: T::ZERO,
-        t: T::ZERO,
-        r: T::ZERO,
-        b: T::ZERO,
+        x: T::ZERO,
+        y: T::ZERO,
+        w: T::ZERO,
+        h: T::ZERO,
     };
 
     /// Creates a rectangle from top-left coordinates and dimensions.
@@ -141,10 +140,10 @@ impl<T: Int> Rect<T> {
             Err(RectError::InvalidDimensions)
         } else {
             Ok(Self {
-                l: tl.x,
-                t: tl.y,
-                r: br.x,
-                b: br.y,
+                x: tl.x,
+                y: tl.y,
+                w: br.x - tl.x,
+                h: br.y - tl.y,
             })
         }
     }
@@ -170,17 +169,26 @@ impl<T: Int> Rect<T> {
         if l > r || t > b {
             Err(RectError::InvalidDimensions)
         } else {
-            Ok(Self { l, t, r, b })
+            Ok(Self {
+                x: l,
+                y: t,
+                w: r - l,
+                h: b - t,
+            })
         }
     }
 
     /// Creates a new rectangle from the `l`eft, `t`op, `r`ight, and `b`ottom coordinates.
     ///
-    /// ## Safety
-    ///
-    /// This method does not check if the coordinates form a valid rectangle.
-    pub const unsafe fn from_ltrb_unchecked(l: T, t: T, r: T, b: T) -> Self {
-        Self { l, t, r, b }
+    /// The caller must ensure `l <= r` and `t <= b`; in debug builds this is checked.
+    pub fn from_ltrb_unchecked(l: T, t: T, r: T, b: T) -> Self {
+        debug_assert!(l <= r && t <= b);
+        Self {
+            x: l,
+            y: t,
+            w: r - l,
+            h: b - t,
+        }
     }
 
     /// Creates a new rectangle from the `l`eft and `t`op coordinates, and `w`idth and `h`eight.
@@ -198,31 +206,31 @@ impl<T: Int> Rect<T> {
     /// ```
     pub fn from_ltwh(l: T, t: T, w: usize, h: usize) -> Self {
         Self {
-            l,
-            t,
-            r: l + T::from_usize(w),
-            b: t + T::from_usize(h),
+            x: l,
+            y: t,
+            w: T::from_usize(w),
+            h: T::from_usize(h),
         }
     }
 
     /// Returns the top, or y-coordinate of the top edge of the rectangle.
     pub const fn top(&self) -> T {
-        self.t
+        self.y
     }
 
     /// Returns the left, or x-coordinate of the left edge of the rectangle.
     pub const fn left(&self) -> T {
-        self.l
+        self.x
     }
 
     /// Returns the right, or x-coordinate of the right edge of the rectangle.
-    pub const fn right(&self) -> T {
-        self.r
+    pub fn right(&self) -> T {
+        self.x + self.w
     }
 
     /// Returns the bottom, or y-coordinate of the bottom edge of the rectangle.
-    pub const fn bottom(&self) -> T {
-        self.b
+    pub fn bottom(&self) -> T {
+        self.y + self.h
     }
 
     /// Returns the top-left corner of the rectangle as a [`Pos<T>`].
@@ -236,7 +244,7 @@ impl<T: Int> Rect<T> {
     /// assert_eq!(rect.top_left(), Pos::new(1, 2));
     /// ```
     pub const fn top_left(&self) -> Pos<T> {
-        Pos::new(self.l, self.t)
+        Pos::new(self.x, self.y)
     }
 
     /// Returns the top-right corner of the rectangle as a [`Pos<T>`].
@@ -249,8 +257,8 @@ impl<T: Int> Rect<T> {
     /// let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
     /// assert_eq!(rect.top_right(), Pos::new(3, 2));
     /// ```
-    pub const fn top_right(&self) -> Pos<T> {
-        Pos::new(self.r, self.t)
+    pub fn top_right(&self) -> Pos<T> {
+        Pos::new(self.x + self.w, self.y)
     }
 
     /// Returns the bottom-right corner of the rectangle as a [`Pos<T>`].
@@ -263,8 +271,8 @@ impl<T: Int> Rect<T> {
     /// let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
     /// assert_eq!(rect.bottom_right(), Pos::new(3, 4));
     /// ```
-    pub const fn bottom_right(&self) -> Pos<T> {
-        Pos::new(self.r, self.b)
+    pub fn bottom_right(&self) -> Pos<T> {
+        Pos::new(self.x + self.w, self.y + self.h)
     }
 
     /// Returns the bottom-left corner of the rectangle as a [`Pos<T>`].
@@ -277,11 +285,11 @@ impl<T: Int> Rect<T> {
     /// let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
     /// assert_eq!(rect.bottom_left(), Pos::new(1, 4));
     /// ```
-    pub const fn bottom_left(&self) -> Pos<T> {
-        Pos::new(self.l, self.b)
+    pub fn bottom_left(&self) -> Pos<T> {
+        Pos::new(self.x, self.y + self.h)
     }
 
-    /// Returns the width of the rectangle, which is the distance between the left and right edges.
+    /// Returns the width of the rectangle.
     ///
     /// ## Examples
     ///
@@ -291,11 +299,11 @@ impl<T: Int> Rect<T> {
     /// let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
     /// assert_eq!(rect.width(), 2);
     /// ```
-    pub fn width(&self) -> usize {
-        (self.r - self.l).to_usize()
+    pub const fn width(&self) -> T {
+        self.w
     }
 
-    /// Returns the height of the rectangle, which is the distance between the top and bottom edges.
+    /// Returns the height of the rectangle.
     ///
     /// ## Examples
     ///
@@ -305,13 +313,23 @@ impl<T: Int> Rect<T> {
     /// let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
     /// assert_eq!(rect.height(), 2);
     /// ```
-    pub fn height(&self) -> usize {
-        (self.b - self.t).to_usize()
+    pub const fn height(&self) -> T {
+        self.h
+    }
+
+    /// Returns the width of the rectangle as a [`usize`], for use in indexing.
+    pub fn width_usize(&self) -> usize {
+        self.w.to_usize()
+    }
+
+    /// Returns the height of the rectangle as a [`usize`], for use in indexing.
+    pub fn height_usize(&self) -> usize {
+        self.h.to_usize()
     }
 
     /// Returns `true` if the rectangle is empty, i.e., if its width or height is zero.
     pub fn is_empty(&self) -> bool {
-        self.width() == 0 || self.height() == 0
+        self.w == T::ZERO || self.h == T::ZERO
     }
 
     /// Returns the area of the rectangle, which is the product of its width and height.
@@ -325,7 +343,7 @@ impl<T: Int> Rect<T> {
     /// assert_eq!(rect.area(), 4);
     /// ```
     pub fn area(&self) -> usize {
-        self.width() * self.height()
+        self.width_usize() * self.height_usize()
     }
 
     /// Returns `true` if the rectangle contains the given `x` and `y` coordinates.
@@ -340,7 +358,9 @@ impl<T: Int> Rect<T> {
     /// assert!(!rect.contains(0, 0));
     /// ```
     pub fn contains(&self, x: T, y: T) -> bool {
-        x >= self.l && x < self.r && y >= self.t && y < self.b
+        let r = self.x + self.w;
+        let b = self.y + self.h;
+        x >= self.x && x < r && y >= self.y && y < b
     }
 
     /// Returns `true` if the rectangle contains the given position.
@@ -375,7 +395,11 @@ impl<T: Int> Rect<T> {
     /// assert!(!rect.contains_rect(Rect::from_ltrb(2, 3, 4, 7).unwrap()));
     /// ```
     pub fn contains_rect(&self, other: Self) -> bool {
-        self.l <= other.l && self.r >= other.r && self.t <= other.t && self.b >= other.b
+        let sr = self.x + self.w;
+        let sb = self.y + self.h;
+        let or = other.x + other.w;
+        let ob = other.y + other.h;
+        self.x <= other.x && sr >= or && self.y <= other.y && sb >= ob
     }
 
     /// Returns the intersection of this rectangle with another rectangle.
@@ -397,13 +421,23 @@ impl<T: Int> Rect<T> {
     /// ```
     #[must_use]
     pub fn intersect(&self, other: Self) -> Self {
-        let l = core::cmp::max(self.l, other.l);
-        let t = core::cmp::max(self.t, other.t);
-        let r = core::cmp::min(self.r, other.r);
-        let b = core::cmp::min(self.b, other.b);
+        let sr = self.x + self.w;
+        let sb = self.y + self.h;
+        let or = other.x + other.w;
+        let ob = other.y + other.h;
+
+        let l = core::cmp::max(self.x, other.x);
+        let t = core::cmp::max(self.y, other.y);
+        let r = core::cmp::min(sr, or);
+        let b = core::cmp::min(sb, ob);
 
         if l < r && t < b {
-            Self { l, t, r, b }
+            Self {
+                x: l,
+                y: t,
+                w: r - l,
+                h: b - t,
+            }
         } else {
             Self::EMPTY
         }
@@ -425,12 +459,12 @@ impl<T: Int> Rect<T> {
     /// The returned rectangle is guaranteed to be within the bounds of this rectangle.
     #[must_use]
     pub fn row_rect(&self, row: usize) -> Self {
-        let l = self.l;
-        let t = self.t + T::from_usize(row);
-        let r = self.r;
-        let b = t + T::from_usize(1);
-
-        Self { l, t, r, b }
+        Self {
+            x: self.x,
+            y: self.y + T::from_usize(row),
+            w: self.w,
+            h: T::ONE,
+        }
     }
 
     /// Returns a sub-rectangle representing a column within this rectangle.
@@ -438,26 +472,26 @@ impl<T: Int> Rect<T> {
     /// The returned rectangle is guaranteed to be within the bounds of this rectangle.
     #[must_use]
     pub fn col_rect(&self, col: usize) -> Self {
-        let l = self.l + T::from_usize(col);
-        let t = self.t;
-        let r = l + T::from_usize(1);
-        let b = self.b;
-
-        Self { l, t, r, b }
+        Self {
+            x: self.x + T::from_usize(col),
+            y: self.y,
+            w: T::ONE,
+            h: self.h,
+        }
     }
 }
 
 impl<T: Display + Int> Display for Rect<T> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "Rect({}, {}, {}, {})", self.l, self.t, self.r, self.b)
+        write!(f, "Rect({}, {}, {}, {})", self.x, self.y, self.w, self.h)
     }
 }
 
 impl<T: Int> HasSize for Rect<T> {
     fn size(&self) -> Size {
         Size {
-            width: self.width(),
-            height: self.height(),
+            width: self.width_usize(),
+            height: self.height_usize(),
         }
     }
 }
@@ -467,20 +501,18 @@ impl<T: Int> ops::Add<Pos<T>> for Rect<T> {
 
     fn add(self, rhs: Pos<T>) -> Self::Output {
         Self {
-            l: self.l + rhs.x,
-            t: self.t + rhs.y,
-            r: self.r + rhs.x,
-            b: self.b + rhs.y,
+            x: self.x + rhs.x,
+            y: self.y + rhs.y,
+            w: self.w,
+            h: self.h,
         }
     }
 }
 
 impl<T: Int> ops::AddAssign<Pos<T>> for Rect<T> {
     fn add_assign(&mut self, rhs: Pos<T>) {
-        self.l += rhs.x;
-        self.t += rhs.y;
-        self.r += rhs.x;
-        self.b += rhs.y;
+        self.x += rhs.x;
+        self.y += rhs.y;
     }
 }
 
@@ -489,20 +521,18 @@ impl<T: Int> ops::Sub<Pos<T>> for Rect<T> {
 
     fn sub(self, rhs: Pos<T>) -> Self::Output {
         Self {
-            l: self.l - rhs.x,
-            t: self.t - rhs.y,
-            r: self.r - rhs.x,
-            b: self.b - rhs.y,
+            x: self.x - rhs.x,
+            y: self.y - rhs.y,
+            w: self.w,
+            h: self.h,
         }
     }
 }
 
 impl<T: Int> ops::SubAssign<Pos<T>> for Rect<T> {
     fn sub_assign(&mut self, rhs: Pos<T>) {
-        self.l -= rhs.x;
-        self.t -= rhs.y;
-        self.r -= rhs.x;
-        self.b -= rhs.y;
+        self.x -= rhs.x;
+        self.y -= rhs.y;
     }
 }
 
@@ -511,20 +541,20 @@ impl<T: Int> ops::Mul<T> for Rect<T> {
 
     fn mul(self, rhs: T) -> Self::Output {
         Self {
-            l: self.l * rhs,
-            t: self.t * rhs,
-            r: self.r * rhs,
-            b: self.b * rhs,
+            x: self.x * rhs,
+            y: self.y * rhs,
+            w: self.w * rhs,
+            h: self.h * rhs,
         }
     }
 }
 
 impl<T: Int> ops::MulAssign<T> for Rect<T> {
     fn mul_assign(&mut self, rhs: T) {
-        self.l *= rhs;
-        self.t *= rhs;
-        self.r *= rhs;
-        self.b *= rhs;
+        self.x *= rhs;
+        self.y *= rhs;
+        self.w *= rhs;
+        self.h *= rhs;
     }
 }
 
@@ -533,20 +563,20 @@ impl<T: Int> ops::Div<T> for Rect<T> {
 
     fn div(self, rhs: T) -> Self::Output {
         Self {
-            l: self.l / rhs,
-            t: self.t / rhs,
-            r: self.r / rhs,
-            b: self.b / rhs,
+            x: self.x / rhs,
+            y: self.y / rhs,
+            w: self.w / rhs,
+            h: self.h / rhs,
         }
     }
 }
 
 impl<T: Int> ops::DivAssign<T> for Rect<T> {
     fn div_assign(&mut self, rhs: T) {
-        self.l /= rhs;
-        self.t /= rhs;
-        self.r /= rhs;
-        self.b /= rhs;
+        self.x /= rhs;
+        self.y /= rhs;
+        self.w /= rhs;
+        self.h /= rhs;
     }
 }
 
@@ -565,26 +595,26 @@ mod tests {
 
     #[test]
     fn rect_macro_ltrb() {
-        const R: Rect<i32> = rect!(1, 2, 3, 4);
-        assert_eq!(R, Rect::from_ltrb(1, 2, 3, 4).unwrap());
+        let r: Rect<i32> = rect!(1, 2, 3, 4);
+        assert_eq!(r, Rect::from_ltrb(1, 2, 3, 4).unwrap());
     }
 
     #[test]
     fn rect_macro_ltrb_auto() {
-        const R: Rect<i32> = rect!(3, 4, 1, 2);
-        assert_eq!(R, Rect::from_ltrb(1, 2, 3, 4).unwrap());
+        let r: Rect<i32> = rect!(3, 4, 1, 2);
+        assert_eq!(r, Rect::from_ltrb(1, 2, 3, 4).unwrap());
     }
 
     #[test]
     fn rect_macro_tlbr() {
-        const R: Rect<i32> = rect!(Pos::new(1, 2), Pos::new(3, 4));
-        assert_eq!(R, Rect::from_tlbr(Pos::new(1, 2), Pos::new(3, 4)).unwrap());
+        let r: Rect<i32> = rect!(Pos::new(1, 2), Pos::new(3, 4));
+        assert_eq!(r, Rect::from_tlbr(Pos::new(1, 2), Pos::new(3, 4)).unwrap());
     }
 
     #[test]
     fn rect_macro_tlbr_auto() {
-        const R: Rect<i32> = rect!(Pos::new(3, 4), Pos::new(1, 2));
-        assert_eq!(R, Rect::from_tlbr(Pos::new(1, 2), Pos::new(3, 4)).unwrap());
+        let r: Rect<i32> = rect!(Pos::new(3, 4), Pos::new(1, 2));
+        assert_eq!(r, Rect::from_tlbr(Pos::new(1, 2), Pos::new(3, 4)).unwrap());
     }
 
     #[test]
@@ -677,25 +707,25 @@ mod tests {
     fn c_layout() {
         #[repr(C)]
         struct CRect {
-            l: i32,
-            t: i32,
-            r: i32,
-            b: i32,
+            x: i32,
+            y: i32,
+            w: i32,
+            h: i32,
         }
 
         let rect = Rect::<i32> {
-            l: 1,
-            t: 2,
-            r: 3,
-            b: 4,
+            x: 1,
+            y: 2,
+            w: 2,
+            h: 2,
         };
 
         #[allow(unsafe_code, reason = "Test")]
         let c_rect: CRect = unsafe { core::mem::transmute(rect) };
-        assert_eq!(c_rect.l, 1);
-        assert_eq!(c_rect.t, 2);
-        assert_eq!(c_rect.r, 3);
-        assert_eq!(c_rect.b, 4);
+        assert_eq!(c_rect.x, 1);
+        assert_eq!(c_rect.y, 2);
+        assert_eq!(c_rect.w, 2);
+        assert_eq!(c_rect.h, 2);
     }
 
     #[test]
@@ -836,7 +866,7 @@ mod tests {
 
     #[test]
     fn from_ltrb_unchecked() {
-        let rect = unsafe { Rect::from_ltrb_unchecked(1, 2, 3, 4) };
+        let rect = Rect::from_ltrb_unchecked(1, 2, 3, 4);
         assert_eq!(rect.left(), 1);
         assert_eq!(rect.top(), 2);
         assert_eq!(rect.right(), 3);
