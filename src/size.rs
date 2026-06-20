@@ -4,6 +4,7 @@ use crate::{Pos, Rect};
 
 /// Represents a size in 2D space, with `width` and `height`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Size {
     /// Width.
     pub width: usize,

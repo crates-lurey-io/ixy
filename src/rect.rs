@@ -60,6 +60,8 @@ macro_rules! rect {
 /// ```
 #[repr(C)]
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::unsafe_derive_deserialize)]
 pub struct Rect<T: Int = i32> {
     l: T,
     t: T,
