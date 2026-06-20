@@ -69,8 +69,7 @@ macro_rules! pos {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(C)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[allow(private_bounds)]
-pub struct Pos<T: Int = i32> {
+pub struct Pos<T = i32> {
     /// The x-coordinate, or _horizontal_ position from the origin.
     ///
     /// ```txt
