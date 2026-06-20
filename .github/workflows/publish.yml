@@ -17,7 +17,7 @@ jobs:
       - name: Validate tag matches Cargo.toml
         run: |
           TAG_VERSION="${GITHUB_REF_NAME#v}"
-          CARGO_VERSION="$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[0].version')"
+          CARGO_VERSION="$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[] | select(.name == "ixy") | .version')"
           if [ "$TAG_VERSION" != "$CARGO_VERSION" ]; then
             echo "::error::Tag v$TAG_VERSION doesn't match Cargo.toml $CARGO_VERSION"
             exit 1
