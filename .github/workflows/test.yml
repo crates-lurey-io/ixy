@@ -52,6 +52,9 @@ jobs:
     - name: Semver Checks
       run: cargo just semver-checks
 
+    - name: MSRV Check
+      run: cargo just msrv
+
     - name: Generate Coverage
       if: matrix.os == 'ubuntu-latest'
       run: cargo just coverage-gen

@@ -36,6 +36,9 @@ doc:
 semver-checks:
     cargo tool cargo-semver-checks --baseline-version 0.5.7
 
+msrv:
+    cargo tool cargo-hack check --rust-version --workspace --all-targets --ignore-private
+
 doc-gen:
     cargo clean --doc
     cargo doc --no-deps

@@ -20,6 +20,16 @@ This project uses [`just`][] to run commands the same way as the CI:
 
 For a full list of commands, see the [`Justfile`](./Justfile).
 
+## Releasing
+
+1. Update the version in `Cargo.toml` and commit.
+2. Push a tag matching the version (e.g. `v0.6.0-alpha.4`).
+3. The [`publish`](.github/workflows/publish.yml) workflow handles the rest:
+   - Validates the tag matches `Cargo.toml`
+   - Runs checks, tests, and semver-checks
+   - Publishes to [crates.io](https://crates.io/crates/ixy) via trusted publishing
+   - Creates a [GitHub Release](https://github.com/crates-lurey-io/ixy/releases) with changelog
+
 ## Inspiration
 
 - [`tinygeom2d`](https://github.com/ttalvitie/tinygeom2d)
