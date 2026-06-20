@@ -3,6 +3,7 @@
 A minimal, no-std compatible crate for 2D integer geometry
 
 [![Test](https://github.com/crates-lurey-io/ixy/actions/workflows/test.yml/badge.svg)](https://github.com/crates-lurey-io/ixy/actions/workflows/test.yml)
+[![Docs](https://github.com/crates-lurey-io/ixy/actions/workflows/docs.yml/badge.svg)](https://github.com/crates-lurey-io/ixy/actions/workflows/docs.yml)
 [![Crates.io Version](https://img.shields.io/crates/v/ixy)](https://crates.io/crates/ixy)
 [![codecov](https://codecov.io/gh/crates-lurey-io/ixy/graph/badge.svg?token=Z3VUWA3WYY)](https://codecov.io/gh/crates-lurey-io/ixy)
 
