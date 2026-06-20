@@ -43,10 +43,10 @@ jobs:
       - name: Extract changelog for this version
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          awk -v ver="$VERSION" '
+          awk -v ver="[$VERSION]" '
             /^## \[/ {
               if (found) exit
-              if ($0 ~ "^## \\[" ver "\\]") found=1
+              if (index($0, ver)) found=1
               next
             }
             found { print }
@@ -65,3 +65,4 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           body_path: release-notes.md
+          prerelease: ${{ contains(steps.version.outputs.version, '-') }}
