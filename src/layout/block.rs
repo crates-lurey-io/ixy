@@ -63,6 +63,7 @@ use crate::{
 ///     ]
 /// );
 /// ```
+#[derive(Clone, Copy)]
 pub struct Block<const W: usize, const H: usize, G = RowMajor, C = G> {
     grid: PhantomData<G>,
     cell: PhantomData<C>,

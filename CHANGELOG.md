@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0-alpha.8] - 2026-06-25
+
+### Added
+
+- `Clone` and `Copy` impls for layout ZSTs: `RowMajor`, `ColumnMajor`, `Block`
+
 ## [0.6.0-alpha.7] - 2026-06-19
 
 Major redesign of `Rect` internal storage and API cleanup, laying groundwork for v1.0.

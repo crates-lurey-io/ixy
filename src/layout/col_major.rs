@@ -13,6 +13,7 @@ use crate::{
 /// 1 4 7 A
 /// 2 5 8 B
 /// ```
+#[derive(Clone, Copy)]
 pub enum ColumnMajor {}
 
 /// Iterator over positions in column-major order.
