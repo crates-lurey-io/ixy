@@ -307,6 +307,29 @@ impl<T: Int> Pos<T> {
     pub fn cmp_lexicographic(&self, other: &Self) -> core::cmp::Ordering {
         self.x.cmp(&other.x).then(self.y.cmp(&other.y))
     }
+
+    /// Attempts to cast this position to a position with a different integer type `U`.
+    ///
+    /// ## Errors
+    ///
+    /// Returns [`TryFromPosError::OutOfRange`] if either coordinate cannot be represented by `U`.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use ixy::Pos;
+    ///
+    /// let p = Pos::<i32>::new(3, 4);
+    /// assert_eq!(p.try_cast::<u8>(), Ok(Pos::<u8>::new(3, 4)));
+    ///
+    /// let out_of_range = Pos::<i32>::new(-3, 4);
+    /// assert!(out_of_range.try_cast::<u8>().is_err());
+    /// ```
+    pub fn try_cast<U: Int + TryFrom<T>>(self) -> Result<Pos<U>, TryFromPosError> {
+        let x = U::try_from(self.x).map_err(|_| TryFromPosError::OutOfRange)?;
+        let y = U::try_from(self.y).map_err(|_| TryFromPosError::OutOfRange)?;
+        Ok(Pos::new(x, y))
+    }
 }
 
 impl<T: SignedInt> Pos<T> {
@@ -528,37 +551,6 @@ impl<T: Int> From<Pos<T>> for [T; 2] {
     }
 }
 
-/// A trait for converting a `Pos<T>` to another type.
-pub trait TryFromPos<T: Int>: Sized {
-    /// Returns the type that the `Pos<T>` can be converted to.
-    ///
-    /// ## Errors
-    ///
-    /// If the conversion fails, returns a `TryFromPosError`.
-    fn try_from_pos(value: Pos<T>) -> Result<Self, TryFromPosError>;
-}
-
-/// A trait for converting a `Pos<T>` from another type.
-pub trait TryIntoPos<T: Int>: Sized {
-    /// Returns the type that the `Pos<T>` can be converted to.
-    ///
-    /// ## Errors
-    ///
-    /// If the conversion fails, returns a `TryFromPosError`.
-    fn try_into_pos(self) -> Result<Pos<T>, TryFromPosError>;
-}
-
-impl<T, U> TryIntoPos<U> for Pos<T>
-where
-    Pos<U>: TryFromPos<T>,
-    U: Int,
-    T: Int,
-{
-    fn try_into_pos(self) -> Result<Pos<U>, TryFromPosError> {
-        Pos::<U>::try_from_pos(self)
-    }
-}
-
 /// An error type for when a `Pos<T>` cannot be converted to another type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TryFromPosError {
@@ -575,14 +567,6 @@ impl Display for TryFromPosError {
 }
 
 impl core::error::Error for TryFromPosError {}
-
-impl<S: Int, T: Int + TryFrom<S>> TryFromPos<S> for Pos<T> {
-    fn try_from_pos(value: Pos<S>) -> Result<Self, TryFromPosError> {
-        let x = T::try_from(value.x).map_err(|_| TryFromPosError::OutOfRange)?;
-        let y = T::try_from(value.y).map_err(|_| TryFromPosError::OutOfRange)?;
-        Ok(Self::new(x, y))
-    }
-}
 
 /// A position using `u16` coordinates — the natural type for terminal grids.
 pub type Pos16 = Pos<u16>;
@@ -798,32 +782,17 @@ mod tests {
     }
 
     #[test]
-    fn try_from_pos_ok() {
+    fn try_cast_ok() {
         let source: Pos<u8> = Pos::new(3, 4);
-        let convert = Pos::<i32>::try_from_pos(source).unwrap();
+        let convert = source.try_cast::<i32>().unwrap();
         assert_eq!(convert.x, 3);
         assert_eq!(convert.y, 4);
     }
 
     #[test]
-    fn try_from_pos_out_of_range() {
+    fn try_cast_out_of_range() {
         let source: Pos<u16> = Pos::new(7000, 8000);
-        let result = Pos::<u8>::try_from_pos(source);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn try_into_pos_ok() {
-        let source: Pos<u8> = Pos::new(3, 4);
-        let convert: Pos<i32> = source.try_into_pos().unwrap();
-        assert_eq!(convert.x, 3);
-        assert_eq!(convert.y, 4);
-    }
-
-    #[test]
-    fn try_into_pos_out_of_range() {
-        let source: Pos<u16> = Pos::new(7000, 8000);
-        let result: Result<Pos<u8>, TryFromPosError> = source.try_into_pos();
+        let result = source.try_cast::<u8>();
         assert!(result.is_err());
     }
 
