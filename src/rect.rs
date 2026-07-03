@@ -3,7 +3,7 @@ use core::{fmt::Display, ops};
 use crate::{
     HasSize, Pos, Size,
     int::Int,
-    layout::{RowMajor, Traversal},
+    layout::{Layout, RowMajor},
 };
 
 /// A macro that creates a rectangle with the given coordinates.

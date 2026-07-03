@@ -3,7 +3,7 @@ use core::{iter::FusedIterator, ops::Range};
 use crate::{
     Pos, Rect, Size,
     int::Int,
-    layout::{Linear, Traversal},
+    layout::{Layout, LinearLayout},
 };
 
 /// Left-to-right, top-to-bottom traversal order for 2D layouts.
@@ -113,7 +113,7 @@ impl<T: Int> ExactSizeIterator for IterBlockRowMajor<T> {
 
 impl<T: Int> FusedIterator for IterBlockRowMajor<T> {}
 
-impl Traversal for RowMajor {
+impl Layout for RowMajor {
     /// Returns an iterator over the positions in the specified rectangle.
     ///
     /// The positions are returned in row-major order.
@@ -126,7 +126,7 @@ impl Traversal for RowMajor {
     /// ```
     ///
     /// ```rust
-    /// use ixy::{Pos, Rect, layout::{Traversal, RowMajor}};
+    /// use ixy::{Pos, Rect, layout::{Layout, RowMajor}};
     ///
     /// let rect = Rect::from_ltwh(0, 0, 3, 2);
     /// let positions: Vec<_> = RowMajor::iter_pos(rect).collect();
@@ -162,7 +162,7 @@ impl Traversal for RowMajor {
     /// ```
     ///
     /// ```rust
-    /// use ixy::{Rect, Size, layout::{RowMajor, Traversal}};
+    /// use ixy::{Rect, Size, layout::{RowMajor, Layout}};
     ///
     /// let rect = Rect::from_ltwh(0, 0, 4, 4);
     /// let size = Size::new(2, 2);
@@ -199,14 +199,14 @@ impl RowMajor {
     }
 }
 
-impl Linear for RowMajor {
-    fn pos_to_index(pos: Pos<usize>, width: usize) -> usize {
-        pos.y * width + pos.x
+impl LinearLayout for RowMajor {
+    fn pos_to_index(pos: Pos<usize>, stride: usize) -> usize {
+        pos.y * stride + pos.x
     }
 
-    fn index_to_pos(index: usize, width: usize) -> Pos<usize> {
-        let x = index % width;
-        let y = index / width;
+    fn index_to_pos(index: usize, stride: usize) -> Pos<usize> {
+        let x = index % stride;
+        let y = index / stride;
         Pos::new(x, y)
     }
 

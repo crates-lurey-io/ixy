@@ -3,7 +3,7 @@ use core::{iter::FusedIterator, ops::Range};
 use crate::{
     Pos, Rect, Size,
     int::Int,
-    layout::{Linear, Traversal},
+    layout::{Layout, LinearLayout},
 };
 
 /// Top-to-bottom, left-to-right traversal order for 2D layouts.
@@ -116,7 +116,7 @@ impl<T: Int> ExactSizeIterator for IterBlockColMajor<T> {
 
 impl<T: Int> FusedIterator for IterBlockColMajor<T> {}
 
-impl Traversal for ColumnMajor {
+impl Layout for ColumnMajor {
     /// Returns an iterator over the positions in the specified rectangle.
     ///
     /// The positions are returned in column-major order.
@@ -129,7 +129,7 @@ impl Traversal for ColumnMajor {
     /// (2, 0) (2, 1)
     /// ```
     /// ```rust
-    /// use ixy::{Pos, Rect, layout::{ColumnMajor, Traversal}};
+    /// use ixy::{Pos, Rect, layout::{ColumnMajor, Layout}};
     /// let rect = Rect::from_ltwh(0, 0, 3, 2);
     /// let positions: Vec<_> = ColumnMajor::iter_pos(rect).collect();
     /// assert_eq!(
@@ -163,7 +163,7 @@ impl Traversal for ColumnMajor {
     /// [2, 0] [2, 2]
     /// ```
     /// ```rust
-    /// use ixy::{Rect, Size, layout::{ColumnMajor, Traversal}};
+    /// use ixy::{Rect, Size, layout::{ColumnMajor, Layout}};
     /// let rect = Rect::from_ltwh(0, 0, 4, 4);
     /// let size = Size::new(2, 2);
     /// let blocks: Vec<_> = ColumnMajor::iter_rect(rect, size).collect();
@@ -199,14 +199,14 @@ impl ColumnMajor {
     }
 }
 
-impl Linear for ColumnMajor {
-    fn pos_to_index(pos: Pos<usize>, width: usize) -> usize {
-        pos.x * width + pos.y
+impl LinearLayout for ColumnMajor {
+    fn pos_to_index(pos: Pos<usize>, stride: usize) -> usize {
+        pos.x * stride + pos.y
     }
 
-    fn index_to_pos(index: usize, width: usize) -> Pos<usize> {
-        let x = index / width;
-        let y = index % width;
+    fn index_to_pos(index: usize, stride: usize) -> Pos<usize> {
+        let x = index / stride;
+        let y = index % stride;
         Pos::new(x, y)
     }
 
