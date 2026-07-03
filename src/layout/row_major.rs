@@ -48,9 +48,13 @@ impl<T: Int> Iterator for IterPosRowMajor<T> {
 
 impl<T: Int> ExactSizeIterator for IterPosRowMajor<T> {
     fn len(&self) -> usize {
-        let remaining_x = self.bounds.right() - self.current.x;
-        let remaining_y = self.bounds.bottom() - self.current.y;
-        remaining_x.to_usize() * remaining_y.to_usize()
+        if self.current.y >= self.bounds.bottom() {
+            return 0;
+        }
+        let width = (self.bounds.right() - self.bounds.left()).to_usize();
+        let remaining_in_row = (self.bounds.right() - self.current.x).to_usize();
+        let remaining_rows = (self.bounds.bottom() - self.current.y).to_usize() - 1;
+        remaining_in_row + remaining_rows * width
     }
 }
 
@@ -90,12 +94,16 @@ impl<T: Int> Iterator for IterBlockRowMajor<T> {
 
 impl<T: Int> ExactSizeIterator for IterBlockRowMajor<T> {
     fn len(&self) -> usize {
-        let remaining_x = self.bounds.right() - self.current.x;
-        let remaining_y = self.bounds.bottom() - self.current.y;
-        (remaining_x.to_usize() / self.size.width)
-            .to_usize()
-            .saturating_mul(remaining_y.to_usize() / self.size.height)
-            .to_usize()
+        if self.current.y >= self.bounds.bottom() || self.size.width == 0 || self.size.height == 0
+        {
+            return 0;
+        }
+        let blocks_per_row =
+            (self.bounds.right() - self.bounds.left()).to_usize() / self.size.width;
+        let remaining_in_row = (self.bounds.right() - self.current.x).to_usize() / self.size.width;
+        let remaining_rows =
+            (self.bounds.bottom() - self.current.y).to_usize() / self.size.height - 1;
+        remaining_in_row + remaining_rows * blocks_per_row
     }
 }
 
@@ -275,6 +283,26 @@ mod tests {
     }
 
     #[test]
+    fn row_major_pos_len_matches_remaining_count() {
+        // Regression test: len() previously computed remaining_x * remaining_y, which
+        // undercounts partially-consumed rows.
+        let rect = Rect::from_ltwh(0, 0, 3, 3);
+        let mut iter = IterPosRowMajor {
+            current: rect.top_left(),
+            bounds: rect,
+        };
+        assert_eq!(iter.len(), 9);
+        iter.next(); // (0, 0)
+        iter.next(); // (1, 0)
+        iter.next(); // (2, 0)
+        assert_eq!(iter.len(), 6);
+        iter.next(); // (0, 1)
+        // At (1, 1): remaining_x = 2, remaining_y = 2 would wrongly give 4; actual is 5.
+        assert_eq!(iter.len(), 5);
+        assert_eq!(iter.count(), 5);
+    }
+
+    #[test]
     fn row_major_blocks_full() {
         let rect = Rect::from_ltwh(0, 0, 4, 4);
         let size = Size::new(2, 2);
@@ -288,6 +316,21 @@ mod tests {
                 Rect::from_ltwh(2, 2, 2, 2),
             ]
         );
+    }
+
+    #[test]
+    fn row_major_block_len_matches_remaining_count() {
+        let rect = Rect::from_ltwh(0, 0, 6, 4);
+        let size = Size::new(2, 2);
+        let mut iter = IterBlockRowMajor {
+            current: rect.top_left(),
+            bounds: rect,
+            size,
+        };
+        assert_eq!(iter.len(), 6);
+        iter.next();
+        assert_eq!(iter.len(), 5);
+        assert_eq!(iter.count(), 5);
     }
 
     #[test]
