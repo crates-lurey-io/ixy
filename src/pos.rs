@@ -247,7 +247,7 @@ impl<T: Int> Pos<T> {
 
     /// Returns an approximate normalized vector of the position.
     ///
-    /// Exact normalization with integer math is not possible, so thhis method returns an
+    /// Exact normalization with integer math is not possible, so this method returns an
     /// approximation that is close enough for most use cases, such as calculating directions or
     /// distances.
     ///
@@ -567,6 +567,16 @@ pub enum TryFromPosError {
     OutOfRange,
 }
 
+impl Display for TryFromPosError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::OutOfRange => write!(f, "value is out of range for the target type"),
+        }
+    }
+}
+
+impl core::error::Error for TryFromPosError {}
+
 impl<S: Int, T: Int + TryFrom<S>> TryFromPos<S> for Pos<T> {
     fn try_from_pos(value: Pos<S>) -> Result<Self, TryFromPosError> {
         let x = T::try_from(value.x).map_err(|_| TryFromPosError::OutOfRange)?;
@@ -599,7 +609,24 @@ pub type PosI = Pos<i32>;
 
 #[cfg(test)]
 mod tests {
+    extern crate alloc;
+
     use super::*;
+    use alloc::string::ToString;
+
+    #[test]
+    fn try_from_pos_error_display() {
+        assert_eq!(
+            TryFromPosError::OutOfRange.to_string(),
+            "value is out of range for the target type"
+        );
+    }
+
+    #[test]
+    fn try_from_pos_error_is_error() {
+        fn assert_error<E: core::error::Error>(_: &E) {}
+        assert_error(&TryFromPosError::OutOfRange);
+    }
 
     #[test]
     fn layout_is_c_struct() {

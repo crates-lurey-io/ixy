@@ -75,6 +75,16 @@ pub enum RectError {
     InvalidDimensions,
 }
 
+impl Display for RectError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::InvalidDimensions => write!(f, "the provided coordinates do not form a valid rectangle"),
+        }
+    }
+}
+
+impl core::error::Error for RectError {}
+
 impl<T: Int> Rect<T> {
     /// An empty rectangle (e.g. a `0x0` region at the origin).
     pub const EMPTY: Self = Self {
@@ -591,7 +601,21 @@ mod tests {
     extern crate alloc;
 
     use super::*;
-    use alloc::vec::Vec;
+    use alloc::{string::ToString, vec::Vec};
+
+    #[test]
+    fn rect_error_display() {
+        assert_eq!(
+            RectError::InvalidDimensions.to_string(),
+            "the provided coordinates do not form a valid rectangle"
+        );
+    }
+
+    #[test]
+    fn rect_error_is_error() {
+        fn assert_error<E: core::error::Error>(_: &E) {}
+        assert_error(&RectError::InvalidDimensions);
+    }
 
     #[test]
     fn rect_macro_ltrb() {
