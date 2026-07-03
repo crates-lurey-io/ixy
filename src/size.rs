@@ -181,19 +181,23 @@ impl<T: Int> TryFrom<Pos<T>> for Size<T> {
 #[allow(private_bounds)]
 pub trait HasSize<T: Int = usize> {
     /// Returns the size of the object.
+    #[must_use]
     fn size(&self) -> Size<T>;
 
     /// Returns the width of the object.
+    #[must_use]
     fn width(&self) -> T {
         self.size().width
     }
 
     /// Returns the height of the object.
+    #[must_use]
     fn height(&self) -> T {
         self.size().height
     }
 
     /// Returns a rectangle at `Pos::ORIGIN` where the size is the object's size.
+    #[must_use]
     fn to_rect(&self) -> Rect<T> {
         Rect::from_ltwh(T::ZERO, T::ZERO, self.width(), self.height())
     }

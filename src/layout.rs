@@ -72,11 +72,13 @@ pub trait LinearLayout: Layout {
     /// Returns a slice of the given slice for the rectangle defined by the layout.
     ///
     /// If the rectangle is not aligned to the current data, the slice will be `None`.
+    #[must_use]
     fn slice_rect_aligned<E>(slice: &[E], size: Size, rect: Rect<usize>) -> Option<&[E]>;
 
     /// Returns a mutable slice of the given slice for the rectangle defined by the layout.
     ///
     /// If the rectangle is not aligned to the current data, the slice will be `None`.
+    #[must_use]
     fn slice_rect_aligned_mut<E>(
         slice: &mut [E],
         size: Size,

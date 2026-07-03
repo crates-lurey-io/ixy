@@ -109,6 +109,7 @@ impl<T: Int> Rect<T> {
     /// assert_eq!(rect.right(), 4);
     /// assert_eq!(rect.bottom(), 6);
     /// ```
+    #[must_use]
     pub const fn new(x: T, y: T, width: T, height: T) -> Self {
         Self::from_ltwh(x, y, width, height)
     }
@@ -126,6 +127,7 @@ impl<T: Int> Rect<T> {
     /// assert_eq!(rect.right(), 4);
     /// assert_eq!(rect.bottom(), 6);
     /// ```
+    #[must_use]
     pub const fn from_tl_size(top_left: Pos<T>, size: Size<T>) -> Self {
         Self::from_ltwh(top_left.x, top_left.y, size.width, size.height)
     }
@@ -193,6 +195,7 @@ impl<T: Int> Rect<T> {
     /// Creates a new rectangle from the `l`eft, `t`op, `r`ight, and `b`ottom coordinates.
     ///
     /// The caller must ensure `l <= r` and `t <= b`; in debug builds this is checked.
+    #[must_use]
     pub fn from_ltrb_unchecked(l: T, t: T, r: T, b: T) -> Self {
         debug_assert!(l <= r && t <= b);
         Self {
@@ -216,26 +219,31 @@ impl<T: Int> Rect<T> {
     /// assert_eq!(rect.right(), 4);
     /// assert_eq!(rect.bottom(), 6);
     /// ```
+    #[must_use]
     pub const fn from_ltwh(l: T, t: T, w: T, h: T) -> Self {
         Self { x: l, y: t, w, h }
     }
 
     /// Returns the top, or y-coordinate of the top edge of the rectangle.
+    #[must_use]
     pub const fn top(&self) -> T {
         self.y
     }
 
     /// Returns the left, or x-coordinate of the left edge of the rectangle.
+    #[must_use]
     pub const fn left(&self) -> T {
         self.x
     }
 
     /// Returns the right, or x-coordinate of the right edge of the rectangle.
+    #[must_use]
     pub fn right(&self) -> T {
         self.x + self.w
     }
 
     /// Returns the bottom, or y-coordinate of the bottom edge of the rectangle.
+    #[must_use]
     pub fn bottom(&self) -> T {
         self.y + self.h
     }
@@ -250,6 +258,7 @@ impl<T: Int> Rect<T> {
     /// let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
     /// assert_eq!(rect.top_left(), Pos::new(1, 2));
     /// ```
+    #[must_use]
     pub const fn top_left(&self) -> Pos<T> {
         Pos::new(self.x, self.y)
     }
@@ -264,6 +273,7 @@ impl<T: Int> Rect<T> {
     /// let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
     /// assert_eq!(rect.top_right(), Pos::new(3, 2));
     /// ```
+    #[must_use]
     pub fn top_right(&self) -> Pos<T> {
         Pos::new(self.x + self.w, self.y)
     }
@@ -278,6 +288,7 @@ impl<T: Int> Rect<T> {
     /// let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
     /// assert_eq!(rect.bottom_right(), Pos::new(3, 4));
     /// ```
+    #[must_use]
     pub fn bottom_right(&self) -> Pos<T> {
         Pos::new(self.x + self.w, self.y + self.h)
     }
@@ -292,6 +303,7 @@ impl<T: Int> Rect<T> {
     /// let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
     /// assert_eq!(rect.bottom_left(), Pos::new(1, 4));
     /// ```
+    #[must_use]
     pub fn bottom_left(&self) -> Pos<T> {
         Pos::new(self.x, self.y + self.h)
     }
@@ -306,6 +318,7 @@ impl<T: Int> Rect<T> {
     /// let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
     /// assert_eq!(rect.width(), 2);
     /// ```
+    #[must_use]
     pub const fn width(&self) -> T {
         self.w
     }
@@ -320,21 +333,25 @@ impl<T: Int> Rect<T> {
     /// let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
     /// assert_eq!(rect.height(), 2);
     /// ```
+    #[must_use]
     pub const fn height(&self) -> T {
         self.h
     }
 
     /// Returns the width of the rectangle as a [`usize`], for use in indexing.
+    #[must_use]
     pub fn width_usize(&self) -> usize {
         self.w.to_usize()
     }
 
     /// Returns the height of the rectangle as a [`usize`], for use in indexing.
+    #[must_use]
     pub fn height_usize(&self) -> usize {
         self.h.to_usize()
     }
 
     /// Returns `true` if the rectangle is empty, i.e., if its width or height is zero.
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.w == T::ZERO || self.h == T::ZERO
     }
@@ -349,6 +366,7 @@ impl<T: Int> Rect<T> {
     /// let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
     /// assert_eq!(rect.area(), 4);
     /// ```
+    #[must_use]
     pub fn area(&self) -> usize {
         self.width_usize() * self.height_usize()
     }
@@ -364,6 +382,7 @@ impl<T: Int> Rect<T> {
     /// assert!(rect.contains(2, 3));
     /// assert!(!rect.contains(0, 0));
     /// ```
+    #[must_use]
     pub fn contains(&self, x: T, y: T) -> bool {
         let r = self.x + self.w;
         let b = self.y + self.h;
@@ -381,6 +400,7 @@ impl<T: Int> Rect<T> {
     /// assert!(rect.contains_pos(Pos::new(2, 3)));
     /// assert!(!rect.contains_pos(Pos::new(0, 0)));
     /// ```
+    #[must_use]
     pub fn contains_pos(&self, pos: Pos<T>) -> bool {
         self.contains(pos.x, pos.y)
     }
@@ -401,6 +421,7 @@ impl<T: Int> Rect<T> {
     /// assert!(!rect.contains_rect(Rect::from_ltrb(2, 3, 6, 5).unwrap()));
     /// assert!(!rect.contains_rect(Rect::from_ltrb(2, 3, 4, 7).unwrap()));
     /// ```
+    #[must_use]
     pub fn contains_rect(&self, other: Self) -> bool {
         let sr = self.x + self.w;
         let sb = self.y + self.h;

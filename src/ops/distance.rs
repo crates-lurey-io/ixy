@@ -15,6 +15,7 @@ use crate::{Pos, int::Int, internal};
 /// let b = Pos::new(6, 8);
 /// assert_eq!(distance::euclidean_approx(a, b), 5);
 /// ```
+#[must_use]
 pub fn euclidean_approx<T: Int>(a: Pos<T>, b: Pos<T>) -> T {
     internal::isqrt(euclidean_squared(a, b))
 }
@@ -37,6 +38,7 @@ pub fn euclidean_approx<T: Int>(a: Pos<T>, b: Pos<T>) -> T {
 /// let b = Pos::new(6, 8);
 /// assert_eq!(distance::euclidean_squared(a, b), 25);
 /// ```
+#[must_use]
 pub fn euclidean_squared<T: Int>(a: Pos<T>, b: Pos<T>) -> T {
     let dx = a.x - b.x;
     let dy = a.y - b.y;
@@ -60,6 +62,7 @@ pub fn euclidean_squared<T: Int>(a: Pos<T>, b: Pos<T>) -> T {
 /// let b = Pos::new(4, 5);
 /// assert_eq!(distance::manhattan(a, b), 7);
 /// ```
+#[must_use]
 pub fn manhattan<T: Int>(a: Pos<T>, b: Pos<T>) -> T {
     (a.x - b.x).abs() + (a.y - b.y).abs()
 }
@@ -81,6 +84,7 @@ pub fn manhattan<T: Int>(a: Pos<T>, b: Pos<T>) -> T {
 /// let b = Pos::new(4, 5);
 /// assert_eq!(distance::chebyshev(a, b), 4);
 /// ```
+#[must_use]
 pub fn chebyshev<T: Int>(a: Pos<T>, b: Pos<T>) -> T {
     let dx = (a.x - b.x).abs();
     let dy = (a.y - b.y).abs();
