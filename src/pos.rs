@@ -682,6 +682,29 @@ impl<T: Int> ops::RemAssign<Self> for Pos<T> {
     }
 }
 
+macro_rules! impl_scalar_mul {
+    ($($t:ty),*) => {
+        $(
+            impl ops::Mul<Pos<$t>> for $t {
+                type Output = Pos<$t>;
+
+                /// Scales `rhs` by `self`, i.e. `n * pos`.
+                ///
+                /// Equivalent to `rhs * self`; provided for parity with `pos * n`.
+                fn mul(self, rhs: Pos<$t>) -> Pos<$t> {
+                    rhs * self
+                }
+            }
+        )*
+    };
+}
+
+#[rustfmt::skip]
+impl_scalar_mul!(
+    i8, i16, i32, i64, i128, isize,
+    u8, u16, u32, u64, u128, usize
+);
+
 impl<T: Int> From<(T, T)> for Pos<T> {
     fn from(value: (T, T)) -> Self {
         Self::new(value.0, value.1)
@@ -969,6 +992,24 @@ mod tests {
     fn mul_by_scalar() {
         let p = Pos::new(3, 4) * 2;
         assert_eq!(p, Pos::new(6, 8));
+    }
+
+    #[test]
+    fn scalar_mul_by_pos() {
+        let p = 2 * Pos::new(3, 4);
+        assert_eq!(p, Pos::new(6, 8));
+    }
+
+    #[test]
+    fn scalar_mul_matches_pos_mul() {
+        let p = Pos::new(3, 4);
+        assert_eq!(2 * p, p * 2);
+    }
+
+    #[test]
+    fn scalar_mul_unsigned() {
+        let p: Pos<u32> = Pos::new(3, 4);
+        assert_eq!(2u32 * p, Pos::new(6, 8));
     }
 
     #[test]
