@@ -3,7 +3,7 @@ use core::{fmt::Display, ops};
 use crate::{
     HasSize, Pos, Size,
     int::Int,
-    layout::{RowMajor, Traversal},
+    layout::{Layout, RowMajor},
 };
 
 /// A macro that creates a rectangle with the given coordinates.
@@ -75,6 +75,18 @@ pub enum RectError {
     InvalidDimensions,
 }
 
+impl Display for RectError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::InvalidDimensions => {
+                write!(f, "the provided coordinates do not form a valid rectangle")
+            }
+        }
+    }
+}
+
+impl core::error::Error for RectError {}
+
 impl<T: Int> Rect<T> {
     /// An empty rectangle (e.g. a `0x0` region at the origin).
     pub const EMPTY: Self = Self {
@@ -97,7 +109,8 @@ impl<T: Int> Rect<T> {
     /// assert_eq!(rect.right(), 4);
     /// assert_eq!(rect.bottom(), 6);
     /// ```
-    pub fn new(x: T, y: T, width: usize, height: usize) -> Self {
+    #[must_use]
+    pub const fn new(x: T, y: T, width: T, height: T) -> Self {
         Self::from_ltwh(x, y, width, height)
     }
 
@@ -114,7 +127,8 @@ impl<T: Int> Rect<T> {
     /// assert_eq!(rect.right(), 4);
     /// assert_eq!(rect.bottom(), 6);
     /// ```
-    pub fn from_tl_size(top_left: Pos<T>, size: Size) -> Self {
+    #[must_use]
+    pub const fn from_tl_size(top_left: Pos<T>, size: Size<T>) -> Self {
         Self::from_ltwh(top_left.x, top_left.y, size.width, size.height)
     }
 
@@ -181,6 +195,7 @@ impl<T: Int> Rect<T> {
     /// Creates a new rectangle from the `l`eft, `t`op, `r`ight, and `b`ottom coordinates.
     ///
     /// The caller must ensure `l <= r` and `t <= b`; in debug builds this is checked.
+    #[must_use]
     pub fn from_ltrb_unchecked(l: T, t: T, r: T, b: T) -> Self {
         debug_assert!(l <= r && t <= b);
         Self {
@@ -204,31 +219,31 @@ impl<T: Int> Rect<T> {
     /// assert_eq!(rect.right(), 4);
     /// assert_eq!(rect.bottom(), 6);
     /// ```
-    pub fn from_ltwh(l: T, t: T, w: usize, h: usize) -> Self {
-        Self {
-            x: l,
-            y: t,
-            w: T::from_usize(w),
-            h: T::from_usize(h),
-        }
+    #[must_use]
+    pub const fn from_ltwh(l: T, t: T, w: T, h: T) -> Self {
+        Self { x: l, y: t, w, h }
     }
 
     /// Returns the top, or y-coordinate of the top edge of the rectangle.
+    #[must_use]
     pub const fn top(&self) -> T {
         self.y
     }
 
     /// Returns the left, or x-coordinate of the left edge of the rectangle.
+    #[must_use]
     pub const fn left(&self) -> T {
         self.x
     }
 
     /// Returns the right, or x-coordinate of the right edge of the rectangle.
+    #[must_use]
     pub fn right(&self) -> T {
         self.x + self.w
     }
 
     /// Returns the bottom, or y-coordinate of the bottom edge of the rectangle.
+    #[must_use]
     pub fn bottom(&self) -> T {
         self.y + self.h
     }
@@ -243,6 +258,7 @@ impl<T: Int> Rect<T> {
     /// let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
     /// assert_eq!(rect.top_left(), Pos::new(1, 2));
     /// ```
+    #[must_use]
     pub const fn top_left(&self) -> Pos<T> {
         Pos::new(self.x, self.y)
     }
@@ -257,6 +273,7 @@ impl<T: Int> Rect<T> {
     /// let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
     /// assert_eq!(rect.top_right(), Pos::new(3, 2));
     /// ```
+    #[must_use]
     pub fn top_right(&self) -> Pos<T> {
         Pos::new(self.x + self.w, self.y)
     }
@@ -271,6 +288,7 @@ impl<T: Int> Rect<T> {
     /// let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
     /// assert_eq!(rect.bottom_right(), Pos::new(3, 4));
     /// ```
+    #[must_use]
     pub fn bottom_right(&self) -> Pos<T> {
         Pos::new(self.x + self.w, self.y + self.h)
     }
@@ -285,6 +303,7 @@ impl<T: Int> Rect<T> {
     /// let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
     /// assert_eq!(rect.bottom_left(), Pos::new(1, 4));
     /// ```
+    #[must_use]
     pub fn bottom_left(&self) -> Pos<T> {
         Pos::new(self.x, self.y + self.h)
     }
@@ -299,6 +318,7 @@ impl<T: Int> Rect<T> {
     /// let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
     /// assert_eq!(rect.width(), 2);
     /// ```
+    #[must_use]
     pub const fn width(&self) -> T {
         self.w
     }
@@ -313,21 +333,25 @@ impl<T: Int> Rect<T> {
     /// let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
     /// assert_eq!(rect.height(), 2);
     /// ```
+    #[must_use]
     pub const fn height(&self) -> T {
         self.h
     }
 
     /// Returns the width of the rectangle as a [`usize`], for use in indexing.
+    #[must_use]
     pub fn width_usize(&self) -> usize {
         self.w.to_usize()
     }
 
     /// Returns the height of the rectangle as a [`usize`], for use in indexing.
+    #[must_use]
     pub fn height_usize(&self) -> usize {
         self.h.to_usize()
     }
 
     /// Returns `true` if the rectangle is empty, i.e., if its width or height is zero.
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.w == T::ZERO || self.h == T::ZERO
     }
@@ -342,6 +366,7 @@ impl<T: Int> Rect<T> {
     /// let rect = Rect::from_ltrb(1, 2, 3, 4).unwrap();
     /// assert_eq!(rect.area(), 4);
     /// ```
+    #[must_use]
     pub fn area(&self) -> usize {
         self.width_usize() * self.height_usize()
     }
@@ -357,6 +382,7 @@ impl<T: Int> Rect<T> {
     /// assert!(rect.contains(2, 3));
     /// assert!(!rect.contains(0, 0));
     /// ```
+    #[must_use]
     pub fn contains(&self, x: T, y: T) -> bool {
         let r = self.x + self.w;
         let b = self.y + self.h;
@@ -374,6 +400,7 @@ impl<T: Int> Rect<T> {
     /// assert!(rect.contains_pos(Pos::new(2, 3)));
     /// assert!(!rect.contains_pos(Pos::new(0, 0)));
     /// ```
+    #[must_use]
     pub fn contains_pos(&self, pos: Pos<T>) -> bool {
         self.contains(pos.x, pos.y)
     }
@@ -394,6 +421,7 @@ impl<T: Int> Rect<T> {
     /// assert!(!rect.contains_rect(Rect::from_ltrb(2, 3, 6, 5).unwrap()));
     /// assert!(!rect.contains_rect(Rect::from_ltrb(2, 3, 4, 7).unwrap()));
     /// ```
+    #[must_use]
     pub fn contains_rect(&self, other: Self) -> bool {
         let sr = self.x + self.w;
         let sb = self.y + self.h;
@@ -479,6 +507,195 @@ impl<T: Int> Rect<T> {
             h: self.h,
         }
     }
+
+    /// Returns the smallest rectangle that contains both `self` and `other`.
+    ///
+    /// If either rectangle is empty, the other rectangle is returned unchanged.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use ixy::Rect;
+    ///
+    /// let a = Rect::from_ltrb(0, 0, 2, 2).unwrap();
+    /// let b = Rect::from_ltrb(1, 1, 4, 4).unwrap();
+    /// assert_eq!(a.union(b), Rect::from_ltrb(0, 0, 4, 4).unwrap());
+    /// ```
+    #[must_use]
+    pub fn union(&self, other: Self) -> Self {
+        if self.is_empty() {
+            return other;
+        }
+        if other.is_empty() {
+            return *self;
+        }
+        let l = core::cmp::min(self.x, other.x);
+        let t = core::cmp::min(self.y, other.y);
+        let r = core::cmp::max(self.right(), other.right());
+        let b = core::cmp::max(self.bottom(), other.bottom());
+        Self {
+            x: l,
+            y: t,
+            w: r - l,
+            h: b - t,
+        }
+    }
+
+    /// Returns a rectangle grown by `dx` on the left/right edges and `dy` on the top/bottom
+    /// edges.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use ixy::Rect;
+    ///
+    /// let rect = Rect::from_ltwh(2, 2, 4, 4);
+    /// assert_eq!(rect.inflate(1, 1), Rect::from_ltwh(1, 1, 6, 6));
+    /// ```
+    #[must_use]
+    pub fn inflate(&self, dx: T, dy: T) -> Self {
+        Self {
+            x: self.x - dx,
+            y: self.y - dy,
+            w: self.w + dx + dx,
+            h: self.h + dy + dy,
+        }
+    }
+
+    /// Returns a rectangle shrunk by `dx` on the left/right edges and `dy` on the top/bottom
+    /// edges.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use ixy::Rect;
+    ///
+    /// let rect = Rect::from_ltwh(1, 1, 6, 6);
+    /// assert_eq!(rect.shrink(1, 1), Rect::from_ltwh(2, 2, 4, 4));
+    /// ```
+    #[must_use]
+    pub fn shrink(&self, dx: T, dy: T) -> Self {
+        Self {
+            x: self.x + dx,
+            y: self.y + dy,
+            w: self.w - dx - dx,
+            h: self.h - dy - dy,
+        }
+    }
+
+    /// Returns the center point of the rectangle.
+    ///
+    /// Integer division rounds the result towards the top-left.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use ixy::{Pos, Rect};
+    ///
+    /// let rect = Rect::from_ltwh(0, 0, 4, 4);
+    /// assert_eq!(rect.center(), Pos::new(2, 2));
+    /// ```
+    #[must_use]
+    pub fn center(&self) -> Pos<T> {
+        let two = T::ONE + T::ONE;
+        Pos::new(self.x + self.w / two, self.y + self.h / two)
+    }
+
+    /// Returns `true` if this rectangle overlaps with `other`, i.e. their intersection is
+    /// non-empty.
+    ///
+    /// Unlike [`Rect::intersect`], this does not construct the overlapping rectangle.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use ixy::Rect;
+    ///
+    /// let a = Rect::from_ltrb(0, 0, 2, 2).unwrap();
+    /// let b = Rect::from_ltrb(1, 1, 3, 3).unwrap();
+    /// let c = Rect::from_ltrb(2, 2, 4, 4).unwrap();
+    /// assert!(a.overlaps(b));
+    /// assert!(!a.overlaps(c));
+    /// ```
+    #[must_use]
+    pub fn overlaps(&self, other: Self) -> bool {
+        self.x < other.right()
+            && other.x < self.right()
+            && self.y < other.bottom()
+            && other.y < self.bottom()
+    }
+}
+
+/// Iterator over the positions in a [`Rect<T>`], in row-major order.
+///
+/// Returned by [`Rect::into_iter`].
+pub struct IntoIter<T: Int> {
+    current: Pos<T>,
+    bounds: Rect<T>,
+}
+
+impl<T: Int> Iterator for IntoIter<T> {
+    type Item = Pos<T>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current.y >= self.bounds.bottom() {
+            return None;
+        }
+        let pos = self.current;
+        self.current.x += T::ONE;
+        if self.current.x >= self.bounds.right() {
+            self.current.x = self.bounds.left();
+            self.current.y += T::ONE;
+        }
+        Some(pos)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.len();
+        (len, Some(len))
+    }
+}
+
+impl<T: Int> ExactSizeIterator for IntoIter<T> {
+    fn len(&self) -> usize {
+        if self.current.y >= self.bounds.bottom() {
+            return 0;
+        }
+        let width = (self.bounds.right() - self.bounds.left()).to_usize();
+        let remaining_in_row = (self.bounds.right() - self.current.x).to_usize();
+        let remaining_rows = (self.bounds.bottom() - self.current.y).to_usize() - 1;
+        remaining_in_row + remaining_rows * width
+    }
+}
+
+impl<T: Int> core::iter::FusedIterator for IntoIter<T> {}
+
+impl<T: Int> IntoIterator for Rect<T> {
+    type Item = Pos<T>;
+    type IntoIter = IntoIter<T>;
+
+    /// Returns an iterator over the positions in the rectangle, in row-major order.
+    ///
+    /// Equivalent to [`Rect::pos_iter`], but usable in `for pos in rect` syntax.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use ixy::{Pos, Rect};
+    ///
+    /// let rect = Rect::from_ltwh(0, 0, 2, 1);
+    /// let mut positions = vec![];
+    /// for pos in rect {
+    ///     positions.push(pos);
+    /// }
+    /// assert_eq!(positions, &[Pos::new(0, 0), Pos::new(1, 0)]);
+    /// ```
+    fn into_iter(self) -> Self::IntoIter {
+        IntoIter {
+            current: self.top_left(),
+            bounds: self,
+        }
+    }
 }
 
 impl<T: Display + Int> Display for Rect<T> {
@@ -487,11 +704,11 @@ impl<T: Display + Int> Display for Rect<T> {
     }
 }
 
-impl<T: Int> HasSize for Rect<T> {
-    fn size(&self) -> Size {
+impl<T: Int> HasSize<T> for Rect<T> {
+    fn size(&self) -> Size<T> {
         Size {
-            width: self.width_usize(),
-            height: self.height_usize(),
+            width: self.w,
+            height: self.h,
         }
     }
 }
@@ -591,7 +808,21 @@ mod tests {
     extern crate alloc;
 
     use super::*;
-    use alloc::vec::Vec;
+    use alloc::{string::ToString, vec::Vec};
+
+    #[test]
+    fn rect_error_display() {
+        assert_eq!(
+            RectError::InvalidDimensions.to_string(),
+            "the provided coordinates do not form a valid rectangle"
+        );
+    }
+
+    #[test]
+    fn rect_error_is_error() {
+        fn assert_error<E: core::error::Error>(_: &E) {}
+        assert_error(&RectError::InvalidDimensions);
+    }
 
     #[test]
     fn rect_macro_ltrb() {
@@ -856,6 +1087,109 @@ mod tests {
         let b = Rect::from_ltrb(6, 7, 8, 9).unwrap();
         let intersection = a.intersect(b);
         assert_eq!(intersection, Rect::EMPTY);
+    }
+
+    #[test]
+    fn union_overlapping() {
+        let a = Rect::from_ltrb(0, 0, 2, 2).unwrap();
+        let b = Rect::from_ltrb(1, 1, 4, 4).unwrap();
+        assert_eq!(a.union(b), Rect::from_ltrb(0, 0, 4, 4).unwrap());
+    }
+
+    #[test]
+    fn union_disjoint() {
+        let a = Rect::from_ltrb(0, 0, 1, 1).unwrap();
+        let b = Rect::from_ltrb(5, 5, 6, 6).unwrap();
+        assert_eq!(a.union(b), Rect::from_ltrb(0, 0, 6, 6).unwrap());
+    }
+
+    #[test]
+    fn union_with_empty() {
+        let a = Rect::from_ltrb(1, 1, 3, 3).unwrap();
+        assert_eq!(a.union(Rect::EMPTY), a);
+        assert_eq!(Rect::EMPTY.union(a), a);
+    }
+
+    #[test]
+    fn inflate() {
+        let rect = Rect::from_ltwh(2, 2, 4, 4);
+        assert_eq!(rect.inflate(1, 1), Rect::from_ltwh(1, 1, 6, 6));
+    }
+
+    #[test]
+    fn shrink() {
+        let rect = Rect::from_ltwh(1, 1, 6, 6);
+        assert_eq!(rect.shrink(1, 1), Rect::from_ltwh(2, 2, 4, 4));
+    }
+
+    #[test]
+    fn inflate_then_shrink_is_identity() {
+        let rect = Rect::from_ltwh(3, 3, 5, 5);
+        assert_eq!(rect.inflate(2, 2).shrink(2, 2), rect);
+    }
+
+    #[test]
+    fn center_even() {
+        let rect = Rect::from_ltwh(0, 0, 4, 4);
+        assert_eq!(rect.center(), Pos::new(2, 2));
+    }
+
+    #[test]
+    fn center_odd_rounds_towards_top_left() {
+        let rect = Rect::from_ltwh(0, 0, 5, 5);
+        assert_eq!(rect.center(), Pos::new(2, 2));
+    }
+
+    #[test]
+    fn overlaps_true() {
+        let a = Rect::from_ltrb(0, 0, 2, 2).unwrap();
+        let b = Rect::from_ltrb(1, 1, 3, 3).unwrap();
+        assert!(a.overlaps(b));
+    }
+
+    #[test]
+    fn overlaps_false_adjacent() {
+        let a = Rect::from_ltrb(0, 0, 2, 2).unwrap();
+        let b = Rect::from_ltrb(2, 2, 4, 4).unwrap();
+        assert!(!a.overlaps(b));
+    }
+
+    #[test]
+    fn overlaps_false_disjoint() {
+        let a = Rect::from_ltrb(0, 0, 2, 2).unwrap();
+        let b = Rect::from_ltrb(5, 5, 6, 6).unwrap();
+        assert!(!a.overlaps(b));
+    }
+
+    #[test]
+    fn into_iter_matches_pos_iter() {
+        let rect = Rect::from_ltwh(0, 0, 2, 2);
+        let via_pos_iter: Vec<Pos<i32>> = rect.pos_iter().collect();
+        let via_into_iter: Vec<Pos<i32>> = rect.into_iter().collect();
+        assert_eq!(via_pos_iter, via_into_iter);
+    }
+
+    #[test]
+    fn into_iter_for_loop() {
+        let rect = Rect::from_ltwh(0, 0, 2, 1);
+        let mut positions = Vec::new();
+        for pos in rect {
+            positions.push(pos);
+        }
+        assert_eq!(positions, &[Pos::new(0, 0), Pos::new(1, 0)]);
+    }
+
+    #[test]
+    fn into_iter_len() {
+        let rect = Rect::from_ltwh(0, 0, 3, 3);
+        let mut iter = rect.into_iter();
+        assert_eq!(iter.len(), 9);
+        iter.next();
+        iter.next();
+        iter.next();
+        iter.next();
+        assert_eq!(iter.len(), 5);
+        assert_eq!(iter.count(), 5);
     }
 
     #[test]

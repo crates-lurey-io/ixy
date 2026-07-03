@@ -1,7 +1,6 @@
 use core::{fmt::Display, ops};
 
 use crate::{
-    Size,
     int::{Int, SignedInt},
     internal,
 };
@@ -126,6 +125,20 @@ impl<T: Int> Pos<T> {
         y: T::ZERO,
     };
 
+    /// The zero vector, i.e. `(0, 0)`.
+    ///
+    /// An alias for [`Pos::ORIGIN`], provided for parity with other geometry crates that use
+    /// `ZERO` for the additive identity of a vector type.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use ixy::Pos;
+    ///
+    /// assert_eq!(Pos::ZERO, Pos::new(0, 0));
+    /// ```
+    pub const ZERO: Self = Self::ORIGIN;
+
     /// The minimum point, i.e. `(T::MIN, T::MIN)`.
     ///
     /// For unsigned integers, this is always [`Self::ORIGIN`], or `O` in the diagram below:
@@ -247,7 +260,7 @@ impl<T: Int> Pos<T> {
 
     /// Returns an approximate normalized vector of the position.
     ///
-    /// Exact normalization with integer math is not possible, so thhis method returns an
+    /// Exact normalization with integer math is not possible, so this method returns an
     /// approximation that is close enough for most use cases, such as calculating directions or
     /// distances.
     ///
@@ -307,6 +320,134 @@ impl<T: Int> Pos<T> {
     #[must_use]
     pub fn cmp_lexicographic(&self, other: &Self) -> core::cmp::Ordering {
         self.x.cmp(&other.x).then(self.y.cmp(&other.y))
+    }
+
+    /// Attempts to cast this position to a position with a different integer type `U`.
+    ///
+    /// ## Errors
+    ///
+    /// Returns [`TryFromPosError::OutOfRange`] if either coordinate cannot be represented by `U`.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use ixy::Pos;
+    ///
+    /// let p = Pos::<i32>::new(3, 4);
+    /// assert_eq!(p.try_cast::<u8>(), Ok(Pos::<u8>::new(3, 4)));
+    ///
+    /// let out_of_range = Pos::<i32>::new(-3, 4);
+    /// assert!(out_of_range.try_cast::<u8>().is_err());
+    /// ```
+    pub fn try_cast<U: Int + TryFrom<T>>(self) -> Result<Pos<U>, TryFromPosError> {
+        let x = U::try_from(self.x).map_err(|_| TryFromPosError::OutOfRange)?;
+        let y = U::try_from(self.y).map_err(|_| TryFromPosError::OutOfRange)?;
+        Ok(Pos::new(x, y))
+    }
+
+    /// Returns a position with both coordinates set to `v`.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use ixy::Pos;
+    ///
+    /// assert_eq!(Pos::splat(5), Pos::new(5, 5));
+    /// ```
+    #[must_use]
+    pub const fn splat(v: T) -> Self {
+        Self { x: v, y: v }
+    }
+
+    /// Returns the component-wise minimum of `self` and `other`.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use ixy::Pos;
+    ///
+    /// assert_eq!(Pos::new(1, 4).min(Pos::new(3, 2)), Pos::new(1, 2));
+    /// ```
+    #[must_use]
+    pub fn min(self, other: Self) -> Self {
+        Self {
+            x: core::cmp::min(self.x, other.x),
+            y: core::cmp::min(self.y, other.y),
+        }
+    }
+
+    /// Returns the component-wise maximum of `self` and `other`.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use ixy::Pos;
+    ///
+    /// assert_eq!(Pos::new(1, 4).max(Pos::new(3, 2)), Pos::new(3, 4));
+    /// ```
+    #[must_use]
+    pub fn max(self, other: Self) -> Self {
+        Self {
+            x: core::cmp::max(self.x, other.x),
+            y: core::cmp::max(self.y, other.y),
+        }
+    }
+
+    /// Returns `self` with each component clamped to the `[min, max]` range.
+    ///
+    /// ## Panics
+    ///
+    /// Panics if `min.x > max.x` or `min.y > max.y`, matching [`Ord::clamp`].
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use ixy::Pos;
+    ///
+    /// let p = Pos::new(5, -5);
+    /// assert_eq!(p.clamp(Pos::new(0, 0), Pos::new(10, 10)), Pos::new(5, 0));
+    /// ```
+    #[must_use]
+    pub fn clamp(self, min: Self, max: Self) -> Self {
+        Self {
+            x: self.x.clamp(min.x, max.x),
+            y: self.y.clamp(min.y, max.y),
+        }
+    }
+
+    /// Returns the component-wise absolute value of `self`.
+    ///
+    /// For unsigned integer types, this is always `self`.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use ixy::Pos;
+    ///
+    /// assert_eq!(Pos::new(-3, 4).abs(), Pos::new(3, 4));
+    /// ```
+    #[must_use]
+    pub fn abs(self) -> Self {
+        Self {
+            x: self.x.abs(),
+            y: self.y.abs(),
+        }
+    }
+
+    /// Returns the [dot product][] of `self` and `other`.
+    ///
+    /// [dot product]: https://en.wikipedia.org/wiki/Dot_product
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use ixy::Pos;
+    ///
+    /// assert_eq!(Pos::new(1, 2).dot(Pos::new(3, 4)), 11);
+    /// ```
+    #[must_use]
+    pub fn dot(self, other: Self) -> T {
+        self.x * other.x + self.y * other.y
     }
 }
 
@@ -505,6 +646,65 @@ impl<T: Int> ops::DivAssign<Self> for Pos<T> {
     }
 }
 
+impl<T: Int> ops::Rem<T> for Pos<T> {
+    type Output = Self;
+
+    fn rem(self, rhs: T) -> Self::Output {
+        Self {
+            x: self.x % rhs,
+            y: self.y % rhs,
+        }
+    }
+}
+
+impl<T: Int> ops::RemAssign<T> for Pos<T> {
+    fn rem_assign(&mut self, rhs: T) {
+        self.x %= rhs;
+        self.y %= rhs;
+    }
+}
+
+impl<T: Int> ops::Rem<Self> for Pos<T> {
+    type Output = Self;
+
+    fn rem(self, rhs: Self) -> Self::Output {
+        Self {
+            x: self.x % rhs.x,
+            y: self.y % rhs.y,
+        }
+    }
+}
+
+impl<T: Int> ops::RemAssign<Self> for Pos<T> {
+    fn rem_assign(&mut self, rhs: Self) {
+        self.x %= rhs.x;
+        self.y %= rhs.y;
+    }
+}
+
+macro_rules! impl_scalar_mul {
+    ($($t:ty),*) => {
+        $(
+            impl ops::Mul<Pos<$t>> for $t {
+                type Output = Pos<$t>;
+
+                /// Scales `rhs` by `self`, i.e. `n * pos`.
+                ///
+                /// Equivalent to `rhs * self`; provided for parity with `pos * n`.
+                fn mul(self, rhs: Pos<$t>) -> Pos<$t> {
+                    rhs * self
+                }
+            }
+        )*
+    };
+}
+
+#[rustfmt::skip]
+impl_scalar_mul!(
+    i8, i16, i32, i64, i128, isize,
+    u8, u16, u32, u64, u128, usize
+);
+
 impl<T: Int> From<(T, T)> for Pos<T> {
     fn from(value: (T, T)) -> Self {
         Self::new(value.0, value.1)
@@ -529,39 +729,6 @@ impl<T: Int> From<Pos<T>> for [T; 2] {
     }
 }
 
-/// A trait for converting a `Pos<T>` to another type.
-pub trait TryFromPos<T: Int>: Sized {
-    /// Returns the type that the `Pos<T>` can be converted to.
-    ///
-    /// ## Errors
-    ///
-    /// If the conversion fails, returns a `TryFromPosError`.
-    fn try_from_pos(value: Pos<T>) -> Result<Self, TryFromPosError>;
-}
-
-/// A trait for converting a `Pos<T>` from another type.
-pub trait TryIntoPos<T: Int>: Sized {
-    /// Returns the type that the `Pos<T>` can be converted to.
-    ///
-    /// ## Errors
-    ///
-    /// If the conversion fails, returns a `TryFromPosError`.
-    fn try_into_pos(self) -> Result<Pos<T>, TryFromPosError>;
-}
-
-impl<T, U> TryIntoPos<U> for Pos<T>
-where
-    Pos<U>: TryFromPos<T>,
-    U: Int,
-    T: Int,
-{
-    fn try_into_pos(self) -> Result<Pos<U>, TryFromPosError> {
-        Pos::<U>::try_from_pos(self)
-    }
-}
-
-
-
 /// An error type for when a `Pos<T>` cannot be converted to another type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TryFromPosError {
@@ -569,29 +736,15 @@ pub enum TryFromPosError {
     OutOfRange,
 }
 
-impl<S: Int, T: Int + TryFrom<S>> TryFromPos<S> for Pos<T> {
-    fn try_from_pos(value: Pos<S>) -> Result<Self, TryFromPosError> {
-        let x = T::try_from(value.x).map_err(|_| TryFromPosError::OutOfRange)?;
-        let y = T::try_from(value.y).map_err(|_| TryFromPosError::OutOfRange)?;
-        Ok(Self::new(x, y))
+impl Display for TryFromPosError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::OutOfRange => write!(f, "value is out of range for the target type"),
+        }
     }
 }
 
-impl<T: Int> TryFrom<Pos<T>> for Size {
-    type Error = TryFromPosError;
-
-    fn try_from(value: Pos<T>) -> Result<Self, TryFromPosError> {
-        let width = value
-            .x
-            .checked_to_usize()
-            .ok_or(TryFromPosError::OutOfRange)?;
-        let height = value
-            .y
-            .checked_to_usize()
-            .ok_or(TryFromPosError::OutOfRange)?;
-        Ok(Self::new(width, height))
-    }
-}
+impl core::error::Error for TryFromPosError {}
 
 /// A position using `u16` coordinates — the natural type for terminal grids.
 pub type Pos16 = Pos<u16>;
@@ -601,7 +754,25 @@ pub type PosI = Pos<i32>;
 
 #[cfg(test)]
 mod tests {
+    extern crate alloc;
+
     use super::*;
+    use crate::Size;
+    use alloc::string::ToString;
+
+    #[test]
+    fn try_from_pos_error_display() {
+        assert_eq!(
+            TryFromPosError::OutOfRange.to_string(),
+            "value is out of range for the target type"
+        );
+    }
+
+    #[test]
+    fn try_from_pos_error_is_error() {
+        fn assert_error<E: core::error::Error>(_: &E) {}
+        assert_error(&TryFromPosError::OutOfRange);
+    }
 
     #[test]
     fn layout_is_c_struct() {
@@ -630,10 +801,10 @@ mod tests {
     #[test]
     fn ord_row_major() {
         // Row-major: y primary, then x
-        assert!(Pos::new(1, 2) < Pos::new(1, 3));   // y: 2 < 3
-        assert!(Pos::new(1, 2) < Pos::new(2, 2));   // y equal, x: 1 < 2
-        assert!(Pos::new(0, 3) > Pos::new(1, 2));   // y: 3 > 2
-        assert!(Pos::new(2, 1) < Pos::new(1, 2));   // y: 1 < 2
+        assert!(Pos::new(1, 2) < Pos::new(1, 3)); // y: 2 < 3
+        assert!(Pos::new(1, 2) < Pos::new(2, 2)); // y equal, x: 1 < 2
+        assert!(Pos::new(0, 3) > Pos::new(1, 2)); // y: 3 > 2
+        assert!(Pos::new(2, 1) < Pos::new(1, 2)); // y: 1 < 2
     }
 
     #[test]
@@ -685,8 +856,8 @@ mod tests {
         // Lexicographic (x first) vs row-major (y first)
         let a = Pos::new(1, 2);
         let b = Pos::new(0, 3);
-        assert_eq!(a.cmp_lexicographic(&b), core::cmp::Ordering::Greater);  // x: 1 > 0
-        assert_eq!(a.cmp(&b), core::cmp::Ordering::Less);                  // y: 2 < 3
+        assert_eq!(a.cmp_lexicographic(&b), core::cmp::Ordering::Greater); // x: 1 > 0
+        assert_eq!(a.cmp(&b), core::cmp::Ordering::Less); // y: 2 < 3
     }
 
     #[test]
@@ -706,6 +877,76 @@ mod tests {
     #[test]
     fn origin_is_0_0() {
         assert_eq!(Pos::ORIGIN, Pos::new(0, 0));
+    }
+
+    #[test]
+    fn zero_is_origin() {
+        assert_eq!(Pos::<i32>::ZERO, Pos::ORIGIN);
+    }
+
+    #[test]
+    fn splat() {
+        assert_eq!(Pos::splat(5), Pos::new(5, 5));
+    }
+
+    #[test]
+    fn min() {
+        assert_eq!(Pos::new(1, 4).min(Pos::new(3, 2)), Pos::new(1, 2));
+    }
+
+    #[test]
+    fn max() {
+        assert_eq!(Pos::new(1, 4).max(Pos::new(3, 2)), Pos::new(3, 4));
+    }
+
+    #[test]
+    fn clamp() {
+        let p = Pos::new(5, -5);
+        assert_eq!(p.clamp(Pos::new(0, 0), Pos::new(10, 10)), Pos::new(5, 0));
+    }
+
+    #[test]
+    fn abs() {
+        assert_eq!(Pos::new(-3, 4).abs(), Pos::new(3, 4));
+    }
+
+    #[test]
+    fn abs_unsigned_is_self() {
+        let p: Pos<u32> = Pos::new(3, 4);
+        assert_eq!(p.abs(), p);
+    }
+
+    #[test]
+    fn dot() {
+        assert_eq!(Pos::new(1, 2).dot(Pos::new(3, 4)), 11);
+    }
+
+    #[test]
+    fn rem_scalar() {
+        let p = Pos::new(7, 9) % 3;
+        assert_eq!(p, Pos::new(1, 0));
+    }
+
+    #[test]
+    fn rem_assign_scalar() {
+        let mut p = Pos::new(7, 9);
+        p %= 3;
+        assert_eq!(p, Pos::new(1, 0));
+    }
+
+    #[test]
+    fn rem_pos() {
+        let p1 = Pos::new(7, 9);
+        let p2 = Pos::new(3, 4);
+        assert_eq!(p1 % p2, Pos::new(1, 1));
+    }
+
+    #[test]
+    fn rem_assign_pos() {
+        let mut p1 = Pos::new(7, 9);
+        let p2 = Pos::new(3, 4);
+        p1 %= p2;
+        assert_eq!(p1, Pos::new(1, 1));
     }
 
     #[test]
@@ -754,6 +995,24 @@ mod tests {
     }
 
     #[test]
+    fn scalar_mul_by_pos() {
+        let p = 2 * Pos::new(3, 4);
+        assert_eq!(p, Pos::new(6, 8));
+    }
+
+    #[test]
+    fn scalar_mul_matches_pos_mul() {
+        let p = Pos::new(3, 4);
+        assert_eq!(2 * p, p * 2);
+    }
+
+    #[test]
+    fn scalar_mul_unsigned() {
+        let p: Pos<u32> = Pos::new(3, 4);
+        assert_eq!(2u32 * p, Pos::new(6, 8));
+    }
+
+    #[test]
     fn mul_assign_by_scalar() {
         let mut p = Pos::new(3, 4);
         p *= 2;
@@ -789,32 +1048,17 @@ mod tests {
     }
 
     #[test]
-    fn try_from_pos_ok() {
+    fn try_cast_ok() {
         let source: Pos<u8> = Pos::new(3, 4);
-        let convert = Pos::<i32>::try_from_pos(source).unwrap();
+        let convert = source.try_cast::<i32>().unwrap();
         assert_eq!(convert.x, 3);
         assert_eq!(convert.y, 4);
     }
 
     #[test]
-    fn try_from_pos_out_of_range() {
+    fn try_cast_out_of_range() {
         let source: Pos<u16> = Pos::new(7000, 8000);
-        let result = Pos::<u8>::try_from_pos(source);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn try_into_pos_ok() {
-        let source: Pos<u8> = Pos::new(3, 4);
-        let convert: Pos<i32> = source.try_into_pos().unwrap();
-        assert_eq!(convert.x, 3);
-        assert_eq!(convert.y, 4);
-    }
-
-    #[test]
-    fn try_into_pos_out_of_range() {
-        let source: Pos<u16> = Pos::new(7000, 8000);
-        let result: Result<Pos<u8>, TryFromPosError> = source.try_into_pos();
+        let result = source.try_cast::<u8>();
         assert!(result.is_err());
     }
 

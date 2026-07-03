@@ -3,7 +3,7 @@ use core::{marker::PhantomData, ops::Range};
 use crate::{
     Pos, Rect, Size,
     int::Int,
-    layout::{Linear, RowMajor, Traversal},
+    layout::{Layout, LinearLayout, RowMajor},
 };
 
 /// 2D space divided into blocks, each containing a grid of cells.
@@ -30,7 +30,7 @@ use crate::{
 /// ## Examples
 ///
 /// ```rust
-/// use ixy::{Pos, Rect, Size, layout::{Block, Traversal}};
+/// use ixy::{Pos, Rect, Size, layout::{Block, Layout}};
 ///
 /// let rect = Rect::from_ltwh(0, 0, 4, 4);
 /// let cells: Vec<_> = Block::<2, 2>::iter_pos(rect).collect();
@@ -69,7 +69,7 @@ pub struct Block<const W: usize, const H: usize, G = RowMajor, C = G> {
     cell: PhantomData<C>,
 }
 
-impl<const W: usize, const H: usize, G: Traversal, C: Traversal> Traversal for Block<W, H, G, C> {
+impl<const W: usize, const H: usize, G: Layout, C: Layout> Layout for Block<W, H, G, C> {
     /// Returns an iterator over the positions in the specified rectangle.
     ///
     /// The positions are returned in the order defined by the traversal.
@@ -85,7 +85,7 @@ impl<const W: usize, const H: usize, G: Traversal, C: Traversal> Traversal for B
     /// ```
     ///
     /// ```rust
-    /// use ixy::{Pos, Rect, Size, layout::{Block, Traversal}};
+    /// use ixy::{Pos, Rect, Size, layout::{Block, Layout}};
     ///
     /// let rect = Rect::from_ltwh(0, 0, 4, 4);
     /// let positions: Vec<_> = Block::<2, 2>::iter_pos(rect).collect();
@@ -158,7 +158,7 @@ impl<const W: usize, const H: usize, G: Traversal, C: Traversal> Traversal for B
     /// ```
     ///
     /// ```rust
-    /// use ixy::{Rect, Size, layout::{Block, Traversal}};
+    /// use ixy::{Rect, Size, layout::{Block, Layout}};
     ///
     /// let rect = Rect::from_ltwh(0, 0, 8, 8);
     /// let inner_block = Size::new(2, 2);
@@ -204,9 +204,10 @@ impl<const W: usize, const H: usize, G: Traversal, C: Traversal> Traversal for B
     }
 }
 
-impl<const W: usize, const H: usize, G: Linear, C: Linear> Linear for Block<W, H, G, C>
+impl<const W: usize, const H: usize, G: LinearLayout, C: LinearLayout> LinearLayout
+    for Block<W, H, G, C>
 {
-    fn pos_to_index(pos: Pos<usize>, width: usize) -> usize {
+    fn pos_to_index(pos: Pos<usize>, stride: usize) -> usize {
         let block_x = pos.x / W;
         let block_y = pos.y / H;
         let cell_x = pos.x % W;
@@ -215,19 +216,19 @@ impl<const W: usize, const H: usize, G: Linear, C: Linear> Linear for Block<W, H
         let block_pos = Pos::new(block_x, block_y);
         let cell_pos = Pos::new(cell_x, cell_y);
 
-        let blocks_per_row = width / W;
+        let blocks_per_row = stride / W;
         let block_offset = G::pos_to_index(block_pos, blocks_per_row);
         let cell_offset = C::pos_to_index(cell_pos, W);
 
         block_offset * (W * H) + cell_offset
     }
 
-    fn index_to_pos(index: usize, width: usize) -> Pos<usize> {
+    fn index_to_pos(index: usize, stride: usize) -> Pos<usize> {
         let cells_per_block = W * H;
         let block_index = index / cells_per_block;
         let cell_index = index % cells_per_block;
 
-        let block_grid_width = width / W;
+        let block_grid_width = stride / W;
         let block_pos = G::index_to_pos(block_index, block_grid_width);
         let cell_pos = C::index_to_pos(cell_index, W);
 

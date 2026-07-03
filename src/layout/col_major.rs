@@ -3,7 +3,7 @@ use core::{iter::FusedIterator, ops::Range};
 use crate::{
     Pos, Rect, Size,
     int::Int,
-    layout::{Linear, Traversal},
+    layout::{Layout, LinearLayout},
 };
 
 /// Top-to-bottom, left-to-right traversal order for 2D layouts.
@@ -47,9 +47,13 @@ impl<T: Int> Iterator for IterPosColMajor<T> {
 
 impl<T: Int> ExactSizeIterator for IterPosColMajor<T> {
     fn len(&self) -> usize {
-        let remaining_x = self.bounds.right() - self.current.x;
-        let remaining_y = self.bounds.bottom() - self.current.y;
-        remaining_x.to_usize() * remaining_y.to_usize()
+        if self.current.x >= self.bounds.right() {
+            return 0;
+        }
+        let height = (self.bounds.bottom() - self.bounds.top()).to_usize();
+        let remaining_in_col = (self.bounds.bottom() - self.current.y).to_usize();
+        let remaining_cols = (self.bounds.right() - self.current.x).to_usize() - 1;
+        remaining_in_col + remaining_cols * height
     }
 }
 
@@ -69,7 +73,12 @@ impl<T: Int> Iterator for IterBlockColMajor<T> {
         if self.current.x >= self.bounds.right() {
             return None;
         }
-        let block = Rect::from_tl_size(self.current, self.size);
+        let block = Rect::from_ltwh(
+            self.current.x,
+            self.current.y,
+            T::from_usize(self.size.width),
+            T::from_usize(self.size.height),
+        );
         self.current.y += T::from_usize(self.size.height);
 
         if self.current.y >= self.bounds.bottom() {
@@ -92,15 +101,22 @@ impl<T: Int> Iterator for IterBlockColMajor<T> {
 
 impl<T: Int> ExactSizeIterator for IterBlockColMajor<T> {
     fn len(&self) -> usize {
-        let remaining_x = self.bounds.right() - self.current.x;
-        let remaining_y = self.bounds.bottom() - self.current.y;
-        (remaining_x.to_usize() / self.size.width) * (remaining_y.to_usize() / self.size.height)
+        if self.current.x >= self.bounds.right() || self.size.width == 0 || self.size.height == 0 {
+            return 0;
+        }
+        let blocks_per_col =
+            (self.bounds.bottom() - self.bounds.top()).to_usize() / self.size.height;
+        let remaining_in_col =
+            (self.bounds.bottom() - self.current.y).to_usize() / self.size.height;
+        let remaining_cols =
+            (self.bounds.right() - self.current.x).to_usize() / self.size.width - 1;
+        remaining_in_col + remaining_cols * blocks_per_col
     }
 }
 
 impl<T: Int> FusedIterator for IterBlockColMajor<T> {}
 
-impl Traversal for ColumnMajor {
+impl Layout for ColumnMajor {
     /// Returns an iterator over the positions in the specified rectangle.
     ///
     /// The positions are returned in column-major order.
@@ -113,7 +129,7 @@ impl Traversal for ColumnMajor {
     /// (2, 0) (2, 1)
     /// ```
     /// ```rust
-    /// use ixy::{Pos, Rect, layout::{ColumnMajor, Traversal}};
+    /// use ixy::{Pos, Rect, layout::{ColumnMajor, Layout}};
     /// let rect = Rect::from_ltwh(0, 0, 3, 2);
     /// let positions: Vec<_> = ColumnMajor::iter_pos(rect).collect();
     /// assert_eq!(
@@ -147,7 +163,7 @@ impl Traversal for ColumnMajor {
     /// [2, 0] [2, 2]
     /// ```
     /// ```rust
-    /// use ixy::{Rect, Size, layout::{ColumnMajor, Traversal}};
+    /// use ixy::{Rect, Size, layout::{ColumnMajor, Layout}};
     /// let rect = Rect::from_ltwh(0, 0, 4, 4);
     /// let size = Size::new(2, 2);
     /// let blocks: Vec<_> = ColumnMajor::iter_rect(rect, size).collect();
@@ -172,7 +188,7 @@ impl Traversal for ColumnMajor {
 }
 
 impl ColumnMajor {
-    const fn axis_to_range<E>(slice: &[E], size: Size, axis: usize) -> Range<usize> {
+    fn axis_to_range<E>(slice: &[E], size: Size, axis: usize) -> Range<usize> {
         assert!(
             slice.len().is_multiple_of(size.area()),
             "slice length must be a multiple of size.width * size.height"
@@ -183,14 +199,14 @@ impl ColumnMajor {
     }
 }
 
-impl Linear for ColumnMajor {
-    fn pos_to_index(pos: Pos<usize>, width: usize) -> usize {
-        pos.x * width + pos.y
+impl LinearLayout for ColumnMajor {
+    fn pos_to_index(pos: Pos<usize>, stride: usize) -> usize {
+        pos.x * stride + pos.y
     }
 
-    fn index_to_pos(index: usize, width: usize) -> Pos<usize> {
-        let x = index / width;
-        let y = index % width;
+    fn index_to_pos(index: usize, stride: usize) -> Pos<usize> {
+        let x = index / stride;
+        let y = index % stride;
         Pos::new(x, y)
     }
 
@@ -291,6 +307,40 @@ mod tests {
     fn column_major_exact_size_iter_pos_len() {
         let rect = Rect::from_ltwh(0, 0, 3, 2);
         assert_eq!(ColumnMajor::iter_pos(rect).count(), 6);
+    }
+
+    #[test]
+    fn column_major_pos_len_matches_remaining_count() {
+        // Regression test: len() previously computed remaining_x * remaining_y, which
+        // undercounts partially-consumed columns.
+        let rect = Rect::from_ltwh(0, 0, 3, 3);
+        let mut iter = IterPosColMajor {
+            current: rect.top_left(),
+            bounds: rect,
+        };
+        assert_eq!(iter.len(), 9);
+        iter.next(); // (0, 0)
+        iter.next(); // (0, 1)
+        iter.next(); // (0, 2)
+        assert_eq!(iter.len(), 6);
+        iter.next(); // (1, 0)
+        assert_eq!(iter.len(), 5);
+        assert_eq!(iter.count(), 5);
+    }
+
+    #[test]
+    fn column_major_block_len_matches_remaining_count() {
+        let rect = Rect::from_ltwh(0, 0, 4, 6);
+        let size = Size::new(2, 2);
+        let mut iter = IterBlockColMajor {
+            current: rect.top_left(),
+            bounds: rect,
+            size,
+        };
+        assert_eq!(iter.len(), 6);
+        iter.next();
+        assert_eq!(iter.len(), 5);
+        assert_eq!(iter.count(), 5);
     }
 
     #[test]

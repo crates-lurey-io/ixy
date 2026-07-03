@@ -5,6 +5,52 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0-alpha.9] - Unreleased
+
+Pre-1.0 API and architecture cleanup pass: closes gaps found in a full crate review and
+comparison against `glam`, `euclid`, `vek`, and `bracket-lib`. All changes are breaking.
+
+### Added
+
+- `Rect::union()`, `Rect::inflate()`, `Rect::shrink()`, `Rect::center()`, `Rect::overlaps()`
+- `impl IntoIterator for Rect<T>` — supports `for pos in rect`
+- `Pos::min()`, `Pos::max()`, `Pos::clamp()`, `Pos::abs()`, `Pos::dot()`, `Pos::splat()`
+- `Pos::ZERO` — alias for `Pos::ORIGIN`
+- `impl Rem|RemAssign<T>` and `impl Rem|RemAssign<Pos<T>>` for `Pos<T>`
+- `Pos::try_cast::<U>()` — replaces `TryFromPos`/`TryIntoPos`
+- Scalar-on-left multiplication: `n * pos`, not just `pos * n`
+- `ops::distance::manhattan()` and `ops::distance::chebyshev()`
+- `ops::line::bresenham()` — pixel-perfect line algorithm, alongside the existing `vector()`
+- `impl Display` and `impl core::error::Error` for `RectError` and `TryFromPosError`
+- `From<Size<T>> for Pos<T>`
+- Crate-level docs: explicit y-down coordinate convention, and a pointer to
+  [`grixy`](https://docs.rs/grixy) for an owning, allocation-backed grid type
+
+### Changed
+
+- **`Size<T>` is now generic over `Int`** (was hardcoded to `usize`), matching `Pos<T>` and
+  `Rect<T>`; defaults to `Size<usize>` for source compatibility with most call sites
+- **`HasSize` is now generic over `Int`** (`HasSize<T = usize>`) to match `Size<T>`
+- **`Rect::new()`, `Rect::from_ltwh()`, `Rect::from_tl_size()`** now take `T` uniformly for
+  width/height instead of mixing `T` position with `usize` dimensions
+- **`layout::Traversal` renamed to `layout::Layout`**
+- **`layout::Linear` renamed to `layout::LinearLayout`**
+- **`LinearLayout::pos_to_index()` / `index_to_pos()`** parameter renamed from `width` to
+  `stride` (was misleading for column-major and block layouts, where it isn't a row width)
+- Added `#[must_use]` to public methods that were silently missing it — `must_use_candidate`
+  and `return_self_not_must_use` do not fire inside generic `impl<T: Int>` blocks, so most of
+  the public API was previously unprotected by the crate's own `deny`-level lint config
+
+### Fixed
+
+- `ExactSizeIterator::len()` on row-major, column-major, and block position/block iterators
+  undercounted remaining items for partially-consumed rows/columns
+- Doc typo ("thhis" → "this") in `Pos::normalized_approx`
+
+### Removed
+
+- `TryFromPos` / `TryIntoPos` traits — use `Pos::try_cast::<U>()` instead
+
 ## [0.6.0-alpha.8] - 2026-06-25
 
 ### Added
