@@ -125,6 +125,20 @@ impl<T: Int> Pos<T> {
         y: T::ZERO,
     };
 
+    /// The zero vector, i.e. `(0, 0)`.
+    ///
+    /// An alias for [`Pos::ORIGIN`], provided for parity with other geometry crates that use
+    /// `ZERO` for the additive identity of a vector type.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use ixy::Pos;
+    ///
+    /// assert_eq!(Pos::ZERO, Pos::new(0, 0));
+    /// ```
+    pub const ZERO: Self = Self::ORIGIN;
+
     /// The minimum point, i.e. `(T::MIN, T::MIN)`.
     ///
     /// For unsigned integers, this is always [`Self::ORIGIN`], or `O` in the diagram below:
@@ -330,6 +344,111 @@ impl<T: Int> Pos<T> {
         let y = U::try_from(self.y).map_err(|_| TryFromPosError::OutOfRange)?;
         Ok(Pos::new(x, y))
     }
+
+    /// Returns a position with both coordinates set to `v`.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use ixy::Pos;
+    ///
+    /// assert_eq!(Pos::splat(5), Pos::new(5, 5));
+    /// ```
+    #[must_use]
+    pub const fn splat(v: T) -> Self {
+        Self { x: v, y: v }
+    }
+
+    /// Returns the component-wise minimum of `self` and `other`.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use ixy::Pos;
+    ///
+    /// assert_eq!(Pos::new(1, 4).min(Pos::new(3, 2)), Pos::new(1, 2));
+    /// ```
+    #[must_use]
+    pub fn min(self, other: Self) -> Self {
+        Self {
+            x: core::cmp::min(self.x, other.x),
+            y: core::cmp::min(self.y, other.y),
+        }
+    }
+
+    /// Returns the component-wise maximum of `self` and `other`.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use ixy::Pos;
+    ///
+    /// assert_eq!(Pos::new(1, 4).max(Pos::new(3, 2)), Pos::new(3, 4));
+    /// ```
+    #[must_use]
+    pub fn max(self, other: Self) -> Self {
+        Self {
+            x: core::cmp::max(self.x, other.x),
+            y: core::cmp::max(self.y, other.y),
+        }
+    }
+
+    /// Returns `self` with each component clamped to the `[min, max]` range.
+    ///
+    /// ## Panics
+    ///
+    /// Panics if `min.x > max.x` or `min.y > max.y`, matching [`Ord::clamp`].
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use ixy::Pos;
+    ///
+    /// let p = Pos::new(5, -5);
+    /// assert_eq!(p.clamp(Pos::new(0, 0), Pos::new(10, 10)), Pos::new(5, 0));
+    /// ```
+    #[must_use]
+    pub fn clamp(self, min: Self, max: Self) -> Self {
+        Self {
+            x: self.x.clamp(min.x, max.x),
+            y: self.y.clamp(min.y, max.y),
+        }
+    }
+
+    /// Returns the component-wise absolute value of `self`.
+    ///
+    /// For unsigned integer types, this is always `self`.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use ixy::Pos;
+    ///
+    /// assert_eq!(Pos::new(-3, 4).abs(), Pos::new(3, 4));
+    /// ```
+    #[must_use]
+    pub fn abs(self) -> Self {
+        Self {
+            x: self.x.abs(),
+            y: self.y.abs(),
+        }
+    }
+
+    /// Returns the [dot product][] of `self` and `other`.
+    ///
+    /// [dot product]: https://en.wikipedia.org/wiki/Dot_product
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use ixy::Pos;
+    ///
+    /// assert_eq!(Pos::new(1, 2).dot(Pos::new(3, 4)), 11);
+    /// ```
+    #[must_use]
+    pub fn dot(self, other: Self) -> T {
+        self.x * other.x + self.y * other.y
+    }
 }
 
 impl<T: SignedInt> Pos<T> {
@@ -527,6 +646,42 @@ impl<T: Int> ops::DivAssign<Self> for Pos<T> {
     }
 }
 
+impl<T: Int> ops::Rem<T> for Pos<T> {
+    type Output = Self;
+
+    fn rem(self, rhs: T) -> Self::Output {
+        Self {
+            x: self.x % rhs,
+            y: self.y % rhs,
+        }
+    }
+}
+
+impl<T: Int> ops::RemAssign<T> for Pos<T> {
+    fn rem_assign(&mut self, rhs: T) {
+        self.x %= rhs;
+        self.y %= rhs;
+    }
+}
+
+impl<T: Int> ops::Rem<Self> for Pos<T> {
+    type Output = Self;
+
+    fn rem(self, rhs: Self) -> Self::Output {
+        Self {
+            x: self.x % rhs.x,
+            y: self.y % rhs.y,
+        }
+    }
+}
+
+impl<T: Int> ops::RemAssign<Self> for Pos<T> {
+    fn rem_assign(&mut self, rhs: Self) {
+        self.x %= rhs.x;
+        self.y %= rhs.y;
+    }
+}
+
 impl<T: Int> From<(T, T)> for Pos<T> {
     fn from(value: (T, T)) -> Self {
         Self::new(value.0, value.1)
@@ -699,6 +854,76 @@ mod tests {
     #[test]
     fn origin_is_0_0() {
         assert_eq!(Pos::ORIGIN, Pos::new(0, 0));
+    }
+
+    #[test]
+    fn zero_is_origin() {
+        assert_eq!(Pos::<i32>::ZERO, Pos::ORIGIN);
+    }
+
+    #[test]
+    fn splat() {
+        assert_eq!(Pos::splat(5), Pos::new(5, 5));
+    }
+
+    #[test]
+    fn min() {
+        assert_eq!(Pos::new(1, 4).min(Pos::new(3, 2)), Pos::new(1, 2));
+    }
+
+    #[test]
+    fn max() {
+        assert_eq!(Pos::new(1, 4).max(Pos::new(3, 2)), Pos::new(3, 4));
+    }
+
+    #[test]
+    fn clamp() {
+        let p = Pos::new(5, -5);
+        assert_eq!(p.clamp(Pos::new(0, 0), Pos::new(10, 10)), Pos::new(5, 0));
+    }
+
+    #[test]
+    fn abs() {
+        assert_eq!(Pos::new(-3, 4).abs(), Pos::new(3, 4));
+    }
+
+    #[test]
+    fn abs_unsigned_is_self() {
+        let p: Pos<u32> = Pos::new(3, 4);
+        assert_eq!(p.abs(), p);
+    }
+
+    #[test]
+    fn dot() {
+        assert_eq!(Pos::new(1, 2).dot(Pos::new(3, 4)), 11);
+    }
+
+    #[test]
+    fn rem_scalar() {
+        let p = Pos::new(7, 9) % 3;
+        assert_eq!(p, Pos::new(1, 0));
+    }
+
+    #[test]
+    fn rem_assign_scalar() {
+        let mut p = Pos::new(7, 9);
+        p %= 3;
+        assert_eq!(p, Pos::new(1, 0));
+    }
+
+    #[test]
+    fn rem_pos() {
+        let p1 = Pos::new(7, 9);
+        let p2 = Pos::new(3, 4);
+        assert_eq!(p1 % p2, Pos::new(1, 1));
+    }
+
+    #[test]
+    fn rem_assign_pos() {
+        let mut p1 = Pos::new(7, 9);
+        let p2 = Pos::new(3, 4);
+        p1 %= p2;
+        assert_eq!(p1, Pos::new(1, 1));
     }
 
     #[test]
