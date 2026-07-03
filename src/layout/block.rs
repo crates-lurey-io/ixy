@@ -204,8 +204,7 @@ impl<const W: usize, const H: usize, G: Traversal, C: Traversal> Traversal for B
     }
 }
 
-impl<const W: usize, const H: usize, G: Linear, C: Linear> Linear for Block<W, H, G, C>
-{
+impl<const W: usize, const H: usize, G: Linear, C: Linear> Linear for Block<W, H, G, C> {
     fn pos_to_index(pos: Pos<usize>, width: usize) -> usize {
         let block_x = pos.x / W;
         let block_y = pos.y / H;

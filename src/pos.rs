@@ -560,8 +560,6 @@ where
     }
 }
 
-
-
 /// An error type for when a `Pos<T>` cannot be converted to another type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TryFromPosError {
@@ -630,10 +628,10 @@ mod tests {
     #[test]
     fn ord_row_major() {
         // Row-major: y primary, then x
-        assert!(Pos::new(1, 2) < Pos::new(1, 3));   // y: 2 < 3
-        assert!(Pos::new(1, 2) < Pos::new(2, 2));   // y equal, x: 1 < 2
-        assert!(Pos::new(0, 3) > Pos::new(1, 2));   // y: 3 > 2
-        assert!(Pos::new(2, 1) < Pos::new(1, 2));   // y: 1 < 2
+        assert!(Pos::new(1, 2) < Pos::new(1, 3)); // y: 2 < 3
+        assert!(Pos::new(1, 2) < Pos::new(2, 2)); // y equal, x: 1 < 2
+        assert!(Pos::new(0, 3) > Pos::new(1, 2)); // y: 3 > 2
+        assert!(Pos::new(2, 1) < Pos::new(1, 2)); // y: 1 < 2
     }
 
     #[test]
@@ -685,8 +683,8 @@ mod tests {
         // Lexicographic (x first) vs row-major (y first)
         let a = Pos::new(1, 2);
         let b = Pos::new(0, 3);
-        assert_eq!(a.cmp_lexicographic(&b), core::cmp::Ordering::Greater);  // x: 1 > 0
-        assert_eq!(a.cmp(&b), core::cmp::Ordering::Less);                  // y: 2 < 3
+        assert_eq!(a.cmp_lexicographic(&b), core::cmp::Ordering::Greater); // x: 1 > 0
+        assert_eq!(a.cmp(&b), core::cmp::Ordering::Less); // y: 2 < 3
     }
 
     #[test]
