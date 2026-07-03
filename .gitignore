@@ -5,4 +5,9 @@
 # Rust build outputs
 # https://doc.rust-lang.org/cargo/reference/build-cache.html
 /target
+*.rlib
+
+# pi-subagents scratch artifacts
+# https://github.com/anthropics/pi
+/.pi-subagents
 
