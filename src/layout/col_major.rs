@@ -73,7 +73,12 @@ impl<T: Int> Iterator for IterBlockColMajor<T> {
         if self.current.x >= self.bounds.right() {
             return None;
         }
-        let block = Rect::from_tl_size(self.current, self.size);
+        let block = Rect::from_ltwh(
+            self.current.x,
+            self.current.y,
+            T::from_usize(self.size.width),
+            T::from_usize(self.size.height),
+        );
         self.current.y += T::from_usize(self.size.height);
 
         if self.current.y >= self.bounds.bottom() {
@@ -96,8 +101,7 @@ impl<T: Int> Iterator for IterBlockColMajor<T> {
 
 impl<T: Int> ExactSizeIterator for IterBlockColMajor<T> {
     fn len(&self) -> usize {
-        if self.current.x >= self.bounds.right() || self.size.width == 0 || self.size.height == 0
-        {
+        if self.current.x >= self.bounds.right() || self.size.width == 0 || self.size.height == 0 {
             return 0;
         }
         let blocks_per_col =
@@ -184,7 +188,7 @@ impl Traversal for ColumnMajor {
 }
 
 impl ColumnMajor {
-    const fn axis_to_range<E>(slice: &[E], size: Size, axis: usize) -> Range<usize> {
+    fn axis_to_range<E>(slice: &[E], size: Size, axis: usize) -> Range<usize> {
         assert!(
             slice.len().is_multiple_of(size.area()),
             "slice length must be a multiple of size.width * size.height"

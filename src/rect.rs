@@ -78,7 +78,9 @@ pub enum RectError {
 impl Display for RectError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            Self::InvalidDimensions => write!(f, "the provided coordinates do not form a valid rectangle"),
+            Self::InvalidDimensions => {
+                write!(f, "the provided coordinates do not form a valid rectangle")
+            }
         }
     }
 }
@@ -107,7 +109,7 @@ impl<T: Int> Rect<T> {
     /// assert_eq!(rect.right(), 4);
     /// assert_eq!(rect.bottom(), 6);
     /// ```
-    pub fn new(x: T, y: T, width: usize, height: usize) -> Self {
+    pub const fn new(x: T, y: T, width: T, height: T) -> Self {
         Self::from_ltwh(x, y, width, height)
     }
 
@@ -124,7 +126,7 @@ impl<T: Int> Rect<T> {
     /// assert_eq!(rect.right(), 4);
     /// assert_eq!(rect.bottom(), 6);
     /// ```
-    pub fn from_tl_size(top_left: Pos<T>, size: Size) -> Self {
+    pub const fn from_tl_size(top_left: Pos<T>, size: Size<T>) -> Self {
         Self::from_ltwh(top_left.x, top_left.y, size.width, size.height)
     }
 
@@ -214,13 +216,8 @@ impl<T: Int> Rect<T> {
     /// assert_eq!(rect.right(), 4);
     /// assert_eq!(rect.bottom(), 6);
     /// ```
-    pub fn from_ltwh(l: T, t: T, w: usize, h: usize) -> Self {
-        Self {
-            x: l,
-            y: t,
-            w: T::from_usize(w),
-            h: T::from_usize(h),
-        }
+    pub const fn from_ltwh(l: T, t: T, w: T, h: T) -> Self {
+        Self { x: l, y: t, w, h }
     }
 
     /// Returns the top, or y-coordinate of the top edge of the rectangle.
@@ -497,11 +494,11 @@ impl<T: Display + Int> Display for Rect<T> {
     }
 }
 
-impl<T: Int> HasSize for Rect<T> {
-    fn size(&self) -> Size {
+impl<T: Int> HasSize<T> for Rect<T> {
+    fn size(&self) -> Size<T> {
         Size {
-            width: self.width_usize(),
-            height: self.height_usize(),
+            width: self.w,
+            height: self.h,
         }
     }
 }

@@ -1,7 +1,6 @@
 use core::{fmt::Display, ops};
 
 use crate::{
-    Size,
     int::{Int, SignedInt},
     internal,
 };
@@ -585,22 +584,6 @@ impl<S: Int, T: Int + TryFrom<S>> TryFromPos<S> for Pos<T> {
     }
 }
 
-impl<T: Int> TryFrom<Pos<T>> for Size {
-    type Error = TryFromPosError;
-
-    fn try_from(value: Pos<T>) -> Result<Self, TryFromPosError> {
-        let width = value
-            .x
-            .checked_to_usize()
-            .ok_or(TryFromPosError::OutOfRange)?;
-        let height = value
-            .y
-            .checked_to_usize()
-            .ok_or(TryFromPosError::OutOfRange)?;
-        Ok(Self::new(width, height))
-    }
-}
-
 /// A position using `u16` coordinates — the natural type for terminal grids.
 pub type Pos16 = Pos<u16>;
 
@@ -612,6 +595,7 @@ mod tests {
     extern crate alloc;
 
     use super::*;
+    use crate::Size;
     use alloc::string::ToString;
 
     #[test]

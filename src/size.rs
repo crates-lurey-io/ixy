@@ -1,39 +1,45 @@
-use core::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
+use core::{
+    fmt,
+    ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign},
+};
 
-use crate::{Pos, Rect};
+use crate::{Pos, Rect, TryFromPosError, int::Int};
 
 /// Represents a size in 2D space, with `width` and `height`.
+///
+/// The type parameter `T` is guaranteed to be a built-in Rust integer type, and defaults to
+/// `usize`, the natural type for indexing and allocation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Size {
+pub struct Size<T = usize> {
     /// Width.
-    pub width: usize,
+    pub width: T,
 
     /// Height.
-    pub height: usize,
+    pub height: T,
 }
 
-impl Size {
+impl<T: Int> Size<T> {
     /// Creates a new size.
     #[must_use]
-    pub const fn new(width: usize, height: usize) -> Self {
+    pub const fn new(width: T, height: T) -> Self {
         Self { width, height }
     }
 
     /// Returns the area of the size (width * height).
     #[must_use]
-    pub const fn area(&self) -> usize {
+    pub fn area(&self) -> T {
         self.width * self.height
     }
 
     /// Converts the size to a position.
     #[must_use]
-    pub const fn to_pos(&self) -> Pos<usize> {
+    pub const fn to_pos(&self) -> Pos<T> {
         Pos::new(self.width, self.height)
     }
 }
 
-impl Add for Size {
+impl<T: Int> Add for Size<T> {
     type Output = Self;
 
     fn add(self, other: Self) -> Self::Output {
@@ -44,14 +50,14 @@ impl Add for Size {
     }
 }
 
-impl AddAssign for Size {
+impl<T: Int> AddAssign for Size<T> {
     fn add_assign(&mut self, other: Self) {
         self.width += other.width;
         self.height += other.height;
     }
 }
 
-impl Sub for Size {
+impl<T: Int> Sub for Size<T> {
     type Output = Self;
 
     fn sub(self, other: Self) -> Self::Output {
@@ -62,14 +68,14 @@ impl Sub for Size {
     }
 }
 
-impl SubAssign for Size {
+impl<T: Int> SubAssign for Size<T> {
     fn sub_assign(&mut self, other: Self) {
         self.width -= other.width;
         self.height -= other.height;
     }
 }
 
-impl Mul for Size {
+impl<T: Int> Mul for Size<T> {
     type Output = Self;
 
     fn mul(self, other: Self) -> Self::Output {
@@ -80,10 +86,10 @@ impl Mul for Size {
     }
 }
 
-impl Mul<usize> for Size {
+impl<T: Int> Mul<T> for Size<T> {
     type Output = Self;
 
-    fn mul(self, scalar: usize) -> Self::Output {
+    fn mul(self, scalar: T) -> Self::Output {
         Self {
             width: self.width * scalar,
             height: self.height * scalar,
@@ -91,21 +97,21 @@ impl Mul<usize> for Size {
     }
 }
 
-impl MulAssign for Size {
+impl<T: Int> MulAssign for Size<T> {
     fn mul_assign(&mut self, other: Self) {
         self.width *= other.width;
         self.height *= other.height;
     }
 }
 
-impl MulAssign<usize> for Size {
-    fn mul_assign(&mut self, scalar: usize) {
+impl<T: Int> MulAssign<T> for Size<T> {
+    fn mul_assign(&mut self, scalar: T) {
         self.width *= scalar;
         self.height *= scalar;
     }
 }
 
-impl Div for Size {
+impl<T: Int> Div for Size<T> {
     type Output = Self;
 
     fn div(self, other: Self) -> Self::Output {
@@ -116,10 +122,10 @@ impl Div for Size {
     }
 }
 
-impl Div<usize> for Size {
+impl<T: Int> Div<T> for Size<T> {
     type Output = Self;
 
-    fn div(self, scalar: usize) -> Self::Output {
+    fn div(self, scalar: T) -> Self::Output {
         Self {
             width: self.width / scalar,
             height: self.height / scalar,
@@ -127,51 +133,74 @@ impl Div<usize> for Size {
     }
 }
 
-impl DivAssign for Size {
+impl<T: Int> DivAssign for Size<T> {
     fn div_assign(&mut self, other: Self) {
         self.width /= other.width;
         self.height /= other.height;
     }
 }
 
-impl DivAssign<usize> for Size {
-    fn div_assign(&mut self, scalar: usize) {
+impl<T: Int> DivAssign<T> for Size<T> {
+    fn div_assign(&mut self, scalar: T) {
         self.width /= scalar;
         self.height /= scalar;
     }
 }
 
-use core::fmt;
-
-impl fmt::Display for Size {
+impl<T: Int> fmt::Display for Size<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}×{}", self.width, self.height)
     }
 }
 
-/// A type that has a [`Size`].
-pub trait HasSize {
+impl<T: Int> From<Size<T>> for Pos<T> {
+    fn from(size: Size<T>) -> Self {
+        size.to_pos()
+    }
+}
+
+impl<T: Int> TryFrom<Pos<T>> for Size<T> {
+    type Error = TryFromPosError;
+
+    /// Converts a position to a size, failing if either coordinate is negative.
+    ///
+    /// ## Errors
+    ///
+    /// Returns [`TryFromPosError::OutOfRange`] if `pos.x` or `pos.y` is negative.
+    fn try_from(pos: Pos<T>) -> Result<Self, Self::Error> {
+        if pos.x < T::ZERO || pos.y < T::ZERO {
+            return Err(TryFromPosError::OutOfRange);
+        }
+        Ok(Self::new(pos.x, pos.y))
+    }
+}
+
+/// A type that has a [`Size<T>`].
+///
+/// The type parameter `T` defaults to `usize`, matching [`Size`]'s default.
+#[allow(private_bounds)]
+pub trait HasSize<T: Int = usize> {
     /// Returns the size of the object.
-    fn size(&self) -> Size;
+    fn size(&self) -> Size<T>;
 
     /// Returns the width of the object.
-    fn width(&self) -> usize {
+    fn width(&self) -> T {
         self.size().width
     }
 
     /// Returns the height of the object.
-    fn height(&self) -> usize {
+    fn height(&self) -> T {
         self.size().height
     }
 
     /// Returns a rectangle at `Pos::ORIGIN` where the size is the object's size.
-    fn to_rect(&self) -> Rect<usize> {
-        Rect::from_ltwh(0, 0, self.width(), self.height())
+    fn to_rect(&self) -> Rect<T> {
+        Rect::from_ltwh(T::ZERO, T::ZERO, self.width(), self.height())
     }
 }
 
-impl HasSize for Size {
-    fn size(&self) -> Size {
+impl<T: Int> HasSize<T> for Size<T> {
+    fn size(&self) -> Self {
         *self
     }
 }
@@ -294,5 +323,32 @@ mod tests {
     fn size_area() {
         let size = Size::new(10, 20);
         assert_eq!(size.area(), 200);
+    }
+
+    #[test]
+    fn from_size_for_pos() {
+        let size = Size::new(10, 20);
+        let pos: Pos<usize> = size.into();
+        assert_eq!(pos, Pos::new(10, 20));
+    }
+
+    #[test]
+    fn try_from_pos_for_size_ok() {
+        let pos = Pos::new(3, 4);
+        let size = Size::try_from(pos).unwrap();
+        assert_eq!(size, Size::new(3, 4));
+    }
+
+    #[test]
+    fn try_from_pos_for_size_negative() {
+        let pos = Pos::new(-3, -4);
+        assert!(Size::try_from(pos).is_err());
+    }
+
+    #[test]
+    fn generic_size_u16() {
+        let size: Size<u16> = Size::new(10, 20);
+        assert_eq!(size.width, 10u16);
+        assert_eq!(size.area(), 200u16);
     }
 }
