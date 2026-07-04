@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2026-07-04
+
+### Fixed
+
+- docs.rs build was failing: `#![feature(doc_auto_cfg)]` was merged into `doc_cfg` and removed as
+  of nightly nightly-2026-07 (rustc 1.92), which is what docs.rs builds with. Switched to
+  `#![feature(doc_cfg)]`, matching the fix `grixy` already made for the same reason.
+  (https://docs.rs/crate/ixy/latest/builds/3761903)
+
 ## [0.6.0] - 2026-07-04
 
 Pre-1.0 API and architecture cleanup pass: closes gaps found in a full crate review and
