@@ -43,7 +43,7 @@
 //! assert!(!rect.contains_pos(Pos::new(150, 250)));
 //! ```
 
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 #![no_std]
 #![forbid(unsafe_code)]
 
