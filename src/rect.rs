@@ -544,6 +544,9 @@ impl<T: Int> Rect<T> {
     /// Returns a rectangle grown by `dx` on the left/right edges and `dy` on the top/bottom
     /// edges.
     ///
+    /// For an unsigned `T`, this panics in debug builds (wraps in release) if `dx`/`dy` exceed
+    /// this rectangle's `x`/`y`, since the left/top edge would need to move below zero.
+    ///
     /// ## Examples
     ///
     /// ```rust
@@ -564,6 +567,9 @@ impl<T: Int> Rect<T> {
 
     /// Returns a rectangle shrunk by `dx` on the left/right edges and `dy` on the top/bottom
     /// edges.
+    ///
+    /// For an unsigned `T`, this panics in debug builds (wraps in release) if `dx + dx`/`dy + dy`
+    /// exceed this rectangle's `w`/`h`.
     ///
     /// ## Examples
     ///

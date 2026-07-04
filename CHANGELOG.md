@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.6.0-alpha.9] - Unreleased
+## [0.6.0] - 2026-07-04
 
 Pre-1.0 API and architecture cleanup pass: closes gaps found in a full crate review and
 comparison against `glam`, `euclid`, `vek`, and `bracket-lib`. All changes are breaking.
@@ -50,6 +50,17 @@ comparison against `glam`, `euclid`, `vek`, and `bracket-lib`. All changes are b
 ### Removed
 
 - `TryFromPos` / `TryIntoPos` traits — use `Pos::try_cast::<U>()` instead
+
+### Chores (pre-stable pass)
+
+- `missing_docs`, `unreachable_pub`, and `unused_qualifications` lints promoted from `warn` to
+  `deny`, and `unsafe_code = "forbid"` added to `[lints.rust]` for parity with the `#![forbid]`
+  attribute already in `lib.rs` and with sibling crates' `Cargo.toml` lint configuration.
+- `just semver-checks` no longer hardcodes a stale baseline version (previously `0.5.7`); lets
+  `cargo-semver-checks` auto-select the latest published release, matching the fix already applied
+  in `grixy`.
+- Documented the unsigned-underflow panic behavior of `Rect::inflate()`/`Rect::shrink()` when the
+  deltas exceed the rectangle's existing position/size.
 
 ## [0.6.0-alpha.8] - 2026-06-25
 

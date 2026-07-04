@@ -32,7 +32,11 @@ doc:
     cargo doc --all-features --no-deps --open --lib
 
 semver-checks:
-    cargo tool cargo-semver-checks --baseline-version 0.5.7
+    # No --baseline-version pin: a hardcoded prerelease baseline goes stale on every alpha bump
+    # and, worse, can silently re-resolve a loose dependency requirement in the baseline against a
+    # newer breaking prerelease (see grixy's alpha.8 CHANGELOG). Letting cargo-semver-checks
+    # auto-select the baseline compares against the latest published release instead.
+    cargo tool cargo-semver-checks
 
 msrv:
     cargo tool cargo-hack check --rust-version --workspace --all-targets --ignore-private
