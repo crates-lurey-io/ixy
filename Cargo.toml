@@ -7,16 +7,17 @@ description = "A minimal, no-std compatible crate for 2D integer geometry"
 repository = "https://github.com/crates-lurey-io/ixy"
 homepage = "https://github.com/crates-lurey-io/ixy"
 documentation = "https://docs.rs/ixy"
-version = "0.6.0-alpha.9"
+version = "0.6.0"
 rust-version = "1.87"
 authors = ["Matan Lurey <matan@lurey.org>"]
 keywords = ["2d", "geometry", "integer", "grid", "position"]
 categories = ["game-development", "mathematics", "no-std"]
 
 [lints.rust]
-missing_docs = "warn"
-unreachable_pub = "warn"
-unused_qualifications = "warn"
+unsafe_code = "forbid"
+missing_docs = "deny"
+unreachable_pub = "deny"
+unused_qualifications = "deny"
 
 [lints.clippy]
 all = { level = "deny", priority = -1 }
