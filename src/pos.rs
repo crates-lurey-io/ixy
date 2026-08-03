@@ -16,7 +16,9 @@ use crate::{
 /// clamp the magnitude itself before it is applied and under-apply large deltas to narrow signed
 /// types (whose `MIN` magnitude is one greater than `MAX`).
 fn saturating_apply_magnitude<T: Int>(base: T, magnitude: usize, negative: bool) -> T {
-    let cap = T::MAX.to_usize();
+    // `saturating_to_usize`, not `to_usize`: `T::MAX` genuinely exceeds `usize` for `u128`/`i128`
+    // on every supported target, and a `usize::MAX` chunk is the right cap there anyway.
+    let cap = T::MAX.saturating_to_usize();
     let bound = if negative { T::MIN } else { T::MAX };
     let mut result = base;
     let mut remaining = magnitude;
@@ -31,6 +33,11 @@ fn saturating_apply_magnitude<T: Int>(base: T, magnitude: usize, negative: bool)
         remaining -= chunk;
     }
     result
+}
+
+/// The magnitude of `delta` as a `usize`, saturating on targets whose `usize` is narrower.
+fn to_magnitude(delta: i32) -> usize {
+    usize::try_from(delta.unsigned_abs()).unwrap_or(usize::MAX)
 }
 
 /// A macro that creates a position with the given `x` and `y` coordinates.
@@ -555,8 +562,8 @@ impl<T: Int> Pos<T> {
     #[must_use]
     pub fn saturating_add_signed(self, delta: Pos<i32>) -> Self {
         Self {
-            x: saturating_apply_magnitude(self.x, delta.x.unsigned_abs() as usize, delta.x < 0),
-            y: saturating_apply_magnitude(self.y, delta.y.unsigned_abs() as usize, delta.y < 0),
+            x: saturating_apply_magnitude(self.x, to_magnitude(delta.x), delta.x < 0),
+            y: saturating_apply_magnitude(self.y, to_magnitude(delta.y), delta.y < 0),
         }
     }
 
