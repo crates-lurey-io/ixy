@@ -9,7 +9,18 @@ use crate::{Pos, Rect, TryFromPosError, int::Int};
 ///
 /// The type parameter `T` is guaranteed to be a built-in Rust integer type, and defaults to
 /// `usize`, the natural type for indexing and allocation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+///
+/// ## Ordering
+///
+/// Sizes are ordered lexicographically: `width` first, then `height`.
+///
+/// ```rust
+/// use ixy::Size;
+///
+/// assert!(Size::new(1, 5) < Size::new(2, 0));   // width-primary: 1 < 2
+/// assert!(Size::new(2, 0) < Size::new(2, 1));   // width equal, height: 0 < 1
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Size<T = usize> {
     /// Width.
@@ -36,6 +47,16 @@ impl<T: Int> Size<T> {
     #[must_use]
     pub const fn to_pos(&self) -> Pos<T> {
         Pos::new(self.width, self.height)
+    }
+}
+
+impl<T: Int> Default for Size<T> {
+    /// Returns a size of `(0, 0)`.
+    fn default() -> Self {
+        Self {
+            width: T::ZERO,
+            height: T::ZERO,
+        }
     }
 }
 
@@ -156,6 +177,30 @@ impl<T: Int> fmt::Display for Size<T> {
 impl<T: Int> From<Size<T>> for Pos<T> {
     fn from(size: Size<T>) -> Self {
         size.to_pos()
+    }
+}
+
+impl<T: Int> From<(T, T)> for Size<T> {
+    fn from(value: (T, T)) -> Self {
+        Self::new(value.0, value.1)
+    }
+}
+
+impl<T: Int> From<Size<T>> for (T, T) {
+    fn from(size: Size<T>) -> Self {
+        (size.width, size.height)
+    }
+}
+
+impl<T: Int> From<[T; 2]> for Size<T> {
+    fn from(value: [T; 2]) -> Self {
+        Self::new(value[0], value[1])
+    }
+}
+
+impl<T: Int> From<Size<T>> for [T; 2] {
+    fn from(size: Size<T>) -> Self {
+        [size.width, size.height]
     }
 }
 
@@ -354,5 +399,60 @@ mod tests {
         let size: Size<u16> = Size::new(10, 20);
         assert_eq!(size.width, 10u16);
         assert_eq!(size.area(), 200u16);
+    }
+
+    #[test]
+    fn default_is_zero_zero() {
+        let size: Size<i32> = Size::default();
+        assert_eq!(size, Size::new(0, 0));
+    }
+
+    #[test]
+    fn ord_width_primary() {
+        // Width-primary: width first, then height.
+        assert!(Size::new(1, 5) < Size::new(2, 0));
+        assert!(Size::new(2, 0) < Size::new(2, 1));
+        assert!(Size::new(3, 0) > Size::new(2, 5));
+    }
+
+    #[test]
+    fn partial_ord_matches_ord() {
+        let a = Size::new(1, 2);
+        let b = Size::new(1, 3);
+        assert_eq!(a.partial_cmp(&b), Some(a.cmp(&b)));
+    }
+
+    #[test]
+    fn from_tuple() {
+        let size = Size::from((3, 4));
+        assert_eq!(size, Size::new(3, 4));
+    }
+
+    #[test]
+    fn into_tuple() {
+        let size = Size::new(3, 4);
+        let tuple: (i32, i32) = size.into();
+        assert_eq!(tuple, (3, 4));
+    }
+
+    #[test]
+    fn from_array() {
+        let size = Size::from([3, 4]);
+        assert_eq!(size, Size::new(3, 4));
+    }
+
+    #[test]
+    fn into_array() {
+        let size = Size::new(3, 4);
+        let array: [i32; 2] = size.into();
+        assert_eq!(array, [3, 4]);
+    }
+
+    #[test]
+    fn into_size_from_tuple_literal() {
+        fn takes_size(size: impl Into<Size<u16>>) -> Size<u16> {
+            size.into()
+        }
+        assert_eq!(takes_size((80u16, 25u16)), Size::new(80, 25));
     }
 }
