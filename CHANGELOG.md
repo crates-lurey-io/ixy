@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.1] - 2026-08-03
+
+### Fixed
+
+- `Rect::right()`/`Rect::bottom()` computed `x + w`/`y + h` with plain (checked) addition, so any
+  `Rect` whose edge exceeds `T`'s max panicked in debug builds (and silently wrapped in release).
+  `Rect::clamp_within()`, `centered_in()`, `inset()`, and `outset()` all call through these two
+  methods and document saturating, non-panicking behavior, so they inherited the same panic
+  despite promising otherwise. `right()`/`bottom()` now saturate at `T::MAX`, matching their
+  callers' documented behavior; `top_right()`, `bottom_right()`, `bottom_left()`, `contains()`,
+  `contains_rect()`, and `intersect()` were also switched to the (now-saturating) accessors
+  instead of duplicating the raw addition.
+  (https://github.com/crates-lurey-io/retroglyph/issues/879)
+
 ## [0.7.0] - 2026-08-02
 
 Closes gaps found by an external source-level audit of a downstream consumer (retroglyph), which

@@ -237,15 +237,21 @@ impl<T: Int> Rect<T> {
     }
 
     /// Returns the right, or x-coordinate of the right edge of the rectangle.
+    ///
+    /// Saturates at `T::MAX` instead of overflowing/panicking if `left() + width()` would exceed
+    /// the range of `T`.
     #[must_use]
     pub fn right(&self) -> T {
-        self.x + self.w
+        self.x.saturating_add(self.w)
     }
 
     /// Returns the bottom, or y-coordinate of the bottom edge of the rectangle.
+    ///
+    /// Saturates at `T::MAX` instead of overflowing/panicking if `top() + height()` would exceed
+    /// the range of `T`.
     #[must_use]
     pub fn bottom(&self) -> T {
-        self.y + self.h
+        self.y.saturating_add(self.h)
     }
 
     /// Returns the top-left corner of the rectangle as a [`Pos<T>`].
@@ -275,7 +281,7 @@ impl<T: Int> Rect<T> {
     /// ```
     #[must_use]
     pub fn top_right(&self) -> Pos<T> {
-        Pos::new(self.x + self.w, self.y)
+        Pos::new(self.right(), self.y)
     }
 
     /// Returns the bottom-right corner of the rectangle as a [`Pos<T>`].
@@ -290,7 +296,7 @@ impl<T: Int> Rect<T> {
     /// ```
     #[must_use]
     pub fn bottom_right(&self) -> Pos<T> {
-        Pos::new(self.x + self.w, self.y + self.h)
+        Pos::new(self.right(), self.bottom())
     }
 
     /// Returns the bottom-left corner of the rectangle as a [`Pos<T>`].
@@ -305,7 +311,7 @@ impl<T: Int> Rect<T> {
     /// ```
     #[must_use]
     pub fn bottom_left(&self) -> Pos<T> {
-        Pos::new(self.x, self.y + self.h)
+        Pos::new(self.x, self.bottom())
     }
 
     /// Returns the width of the rectangle.
@@ -384,9 +390,7 @@ impl<T: Int> Rect<T> {
     /// ```
     #[must_use]
     pub fn contains(&self, x: T, y: T) -> bool {
-        let r = self.x + self.w;
-        let b = self.y + self.h;
-        x >= self.x && x < r && y >= self.y && y < b
+        x >= self.x && x < self.right() && y >= self.y && y < self.bottom()
     }
 
     /// Returns `true` if the rectangle contains the given position.
@@ -423,11 +427,10 @@ impl<T: Int> Rect<T> {
     /// ```
     #[must_use]
     pub fn contains_rect(&self, other: Self) -> bool {
-        let sr = self.x + self.w;
-        let sb = self.y + self.h;
-        let or = other.x + other.w;
-        let ob = other.y + other.h;
-        self.x <= other.x && sr >= or && self.y <= other.y && sb >= ob
+        self.x <= other.x
+            && self.right() >= other.right()
+            && self.y <= other.y
+            && self.bottom() >= other.bottom()
     }
 
     /// Returns the intersection of this rectangle with another rectangle.
@@ -449,15 +452,10 @@ impl<T: Int> Rect<T> {
     /// ```
     #[must_use]
     pub fn intersect(&self, other: Self) -> Self {
-        let sr = self.x + self.w;
-        let sb = self.y + self.h;
-        let or = other.x + other.w;
-        let ob = other.y + other.h;
-
         let l = core::cmp::max(self.x, other.x);
         let t = core::cmp::max(self.y, other.y);
-        let r = core::cmp::min(sr, or);
-        let b = core::cmp::min(sb, ob);
+        let r = core::cmp::min(self.right(), other.right());
+        let b = core::cmp::min(self.bottom(), other.bottom());
 
         if l < r && t < b {
             Self {
@@ -1164,6 +1162,51 @@ mod tests {
         assert_eq!(rect.bottom_left(), Pos::new(1, 4));
     }
 
+    // Regression tests for https://github.com/crates-lurey-io/retroglyph/issues/879: `right()`/
+    // `bottom()` used plain `+`, so any Rect whose `x + w` (or `y + h`) exceeds `T::MAX` panicked
+    // in debug builds, even though callers like `clamp_within`/`inset`/`outset` document
+    // saturating, non-panicking behavior and rely on these two methods internally.
+
+    #[test]
+    fn right_saturates_on_unsigned_overflow() {
+        let rect = Rect::new(50_000u16, 0, 40_000, 10);
+        assert_eq!(rect.right(), u16::MAX);
+    }
+
+    #[test]
+    fn bottom_saturates_on_unsigned_overflow() {
+        let rect = Rect::new(0u16, 50_000, 10, 40_000);
+        assert_eq!(rect.bottom(), u16::MAX);
+    }
+
+    #[test]
+    fn corners_saturate_on_unsigned_overflow() {
+        let rect = Rect::new(50_000u16, 50_000, 40_000, 40_000);
+        assert_eq!(rect.top_right(), Pos::new(u16::MAX, 50_000));
+        assert_eq!(rect.bottom_right(), Pos::new(u16::MAX, u16::MAX));
+        assert_eq!(rect.bottom_left(), Pos::new(50_000, u16::MAX));
+    }
+
+    #[test]
+    fn contains_does_not_panic_when_right_overflows() {
+        let rect = Rect::new(50_000u16, 0, 40_000, 10);
+        assert!(rect.contains(60_000, 5));
+        assert!(!rect.contains(10, 5));
+    }
+
+    #[test]
+    fn contains_rect_does_not_panic_when_right_overflows() {
+        let rect = Rect::new(50_000u16, 0, 40_000, 10);
+        assert!(rect.contains_rect(Rect::new(60_000u16, 0, 100, 10)));
+    }
+
+    #[test]
+    fn intersect_does_not_panic_when_right_overflows() {
+        let a = Rect::new(50_000u16, 0, 40_000, 10);
+        let b = Rect::new(60_000u16, 0, 100, 10);
+        assert_eq!(a.intersect(b), Rect::from_ltwh(60_000, 0, 100, 10));
+    }
+
     #[test]
     fn dimensions() {
         let rect = Rect::from_ltrb(1, 2, 3, 6).unwrap();
@@ -1353,6 +1396,16 @@ mod tests {
     }
 
     #[test]
+    fn inset_does_not_panic_when_self_right_overflows() {
+        // Regression test for https://github.com/crates-lurey-io/retroglyph/issues/879.
+        let rect = Rect::new(50_000u16, 0, 40_000, 10);
+        assert_eq!(
+            rect.inset(1, 1, 1, 1),
+            Rect::from_ltwh(50_001, 1, 15_533, 8)
+        );
+    }
+
+    #[test]
     fn outset_asymmetric() {
         let rect = Rect::from_ltwh(4, 3, 2, 4);
         assert_eq!(rect.outset(1, 2, 1, 2), Rect::from_ltwh(2, 2, 6, 6));
@@ -1376,6 +1429,16 @@ mod tests {
     fn outset_saturates_at_max() {
         let rect = Rect::from_ltwh(u8::MAX - 2, 0, 2, 2);
         assert_eq!(rect.outset(0, 10, 0, 0).right(), u8::MAX);
+    }
+
+    #[test]
+    fn outset_does_not_panic_when_self_right_overflows() {
+        // Regression test for https://github.com/crates-lurey-io/retroglyph/issues/879.
+        let rect = Rect::new(50_000u16, 0, 40_000, 10);
+        assert_eq!(
+            rect.outset(1, 1, 1, 1),
+            Rect::from_ltwh(49_999, 0, 15_536, 11)
+        );
     }
 
     #[test]
@@ -1430,6 +1493,24 @@ mod tests {
     }
 
     #[test]
+    fn clamp_within_does_not_panic_when_bounds_right_overflows() {
+        // Regression test for https://github.com/crates-lurey-io/retroglyph/issues/879: bounds
+        // whose own `x + w` exceeds `u16::MAX` used to panic instead of saturating.
+        let bounds = Rect::new(50_000u16, 0, 40_000, 10);
+        assert_eq!(bounds.clamp_within(bounds), bounds);
+    }
+
+    #[test]
+    fn clamp_within_clamps_correctly_when_bounds_right_overflows() {
+        let bounds = Rect::new(50_000u16, 0, 40_000, 10);
+        let hanging = Rect::new(63_000u16, 8, 4_000, 5);
+        assert_eq!(
+            hanging.clamp_within(bounds),
+            Rect::from_ltwh(61_535, 5, 4_000, 5)
+        );
+    }
+
+    #[test]
     fn centered_in_even_bounds() {
         let bounds = Rect::from_ltwh(0, 0, 10, 10);
         let popup = Rect::from_ltwh(0, 0, 4, 4);
@@ -1462,6 +1543,17 @@ mod tests {
         let bounds = Rect::from_ltwh(0u16, 0, 4, 4);
         let too_big = Rect::from_ltwh(0u16, 0, 10, 10);
         assert_eq!(too_big.centered_in(bounds), Rect::from_ltwh(0, 0, 10, 10));
+    }
+
+    #[test]
+    fn centered_in_does_not_panic_when_bounds_right_overflows() {
+        // Regression test for https://github.com/crates-lurey-io/retroglyph/issues/879.
+        let bounds = Rect::new(50_000u16, 0, 40_000, 10);
+        let popup = Rect::new(50_000u16, 0, 100, 5);
+        assert_eq!(
+            popup.centered_in(bounds),
+            Rect::from_ltwh(65_435, 2, 100, 5)
+        );
     }
 
     #[test]
