@@ -146,6 +146,32 @@ pub trait Int:
     /// Returns the number of trailing zeros in the binary representation of `self`.
     #[must_use]
     fn trailing_zeros(self) -> u32;
+
+    /// Returns `self + rhs`, saturating at the numeric bounds instead of overflowing.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use ixy::int::Int;
+    ///
+    /// assert_eq!(Int::saturating_add(250u8, 10u8), 255u8);
+    /// assert_eq!(Int::saturating_add(1i8, 1i8), 2i8);
+    /// ```
+    #[must_use]
+    fn saturating_add(self, rhs: Self) -> Self;
+
+    /// Returns `self - rhs`, saturating at the numeric bounds instead of overflowing.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use ixy::int::Int;
+    ///
+    /// assert_eq!(Int::saturating_sub(5u8, 10u8), 0u8);
+    /// assert_eq!(Int::saturating_sub(1i8, 1i8), 0i8);
+    /// ```
+    #[must_use]
+    fn saturating_sub(self, rhs: Self) -> Self;
 }
 
 /// Generic trait for the built-in Rust signed integer types.
@@ -184,6 +210,14 @@ macro_rules! impl_unsigned_int {
         fn trailing_zeros(self) -> u32 {
           self.trailing_zeros()
         }
+
+        fn saturating_add(self, rhs: Self) -> Self {
+          <$t>::saturating_add(self, rhs)
+        }
+
+        fn saturating_sub(self, rhs: Self) -> Self {
+          <$t>::saturating_sub(self, rhs)
+        }
       }
     )*
   };
@@ -218,6 +252,14 @@ macro_rules! impl_signed_int {
 
         fn trailing_zeros(self) -> u32 {
           self.trailing_zeros()
+        }
+
+        fn saturating_add(self, rhs: Self) -> Self {
+          <$t>::saturating_add(self, rhs)
+        }
+
+        fn saturating_sub(self, rhs: Self) -> Self {
+          <$t>::saturating_sub(self, rhs)
         }
       }
 
@@ -348,5 +390,45 @@ mod tests {
         assert_eq!(Int::trailing_zeros(4u64), 2);
         assert_eq!(Int::trailing_zeros(4u128), 2);
         assert_eq!(Int::trailing_zeros(4usize), 2);
+    }
+
+    #[test]
+    fn saturating_add_unsigned_no_overflow() {
+        assert_eq!(Int::saturating_add(1u8, 2u8), 3u8);
+    }
+
+    #[test]
+    fn saturating_add_unsigned_overflow() {
+        assert_eq!(Int::saturating_add(250u8, 10u8), u8::MAX);
+    }
+
+    #[test]
+    fn saturating_add_signed_overflow() {
+        assert_eq!(Int::saturating_add(i8::MAX, 1i8), i8::MAX);
+    }
+
+    #[test]
+    fn saturating_add_signed_underflow() {
+        assert_eq!(Int::saturating_add(i8::MIN, -1i8), i8::MIN);
+    }
+
+    #[test]
+    fn saturating_sub_unsigned_no_underflow() {
+        assert_eq!(Int::saturating_sub(5u8, 2u8), 3u8);
+    }
+
+    #[test]
+    fn saturating_sub_unsigned_underflow() {
+        assert_eq!(Int::saturating_sub(5u8, 10u8), 0u8);
+    }
+
+    #[test]
+    fn saturating_sub_signed_underflow() {
+        assert_eq!(Int::saturating_sub(i8::MIN, 1i8), i8::MIN);
+    }
+
+    #[test]
+    fn saturating_sub_signed_overflow() {
+        assert_eq!(Int::saturating_sub(i8::MAX, -1i8), i8::MAX);
     }
 }
