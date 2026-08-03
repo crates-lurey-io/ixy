@@ -200,33 +200,34 @@ impl ColumnMajor {
 }
 
 impl LinearLayout for ColumnMajor {
-    fn pos_to_index(pos: Pos<usize>, stride: usize) -> usize {
-        pos.x * stride + pos.y
+    fn pos_to_index<T: Int>(pos: Pos<T>, stride: usize) -> usize {
+        pos.x.to_usize() * stride + pos.y.to_usize()
     }
 
-    fn index_to_pos(index: usize, stride: usize) -> Pos<usize> {
+    fn index_to_pos<T: Int>(index: usize, stride: usize) -> Pos<T> {
         let x = index / stride;
         let y = index % stride;
-        Pos::new(x, y)
+        Pos::new(T::from_usize(x), T::from_usize(y))
     }
 
     fn len_aligned(size: Size) -> usize {
         size.width
     }
 
-    fn rect_to_range(size: Size, rect: Rect<usize>) -> Option<Range<usize>> {
+    fn rect_to_range<T: Int>(size: Size<T>, rect: Rect<T>) -> Option<Range<usize>> {
         // Must be either:
         // - Elements entirely within a single column (width = 1)
         // - Elements spanning multiple columns but full-height
-        if rect.width() != 1 && rect.height() != size.height {
+        if rect.width() != T::ONE && rect.height() != size.height {
             return None;
         }
-        let start = rect.top_left().y * size.width + rect.top_left().x;
-        let end = start + rect.width() * rect.height();
+        let start =
+            rect.top_left().y.to_usize() * size.width.to_usize() + rect.top_left().x.to_usize();
+        let end = start + rect.width().to_usize() * rect.height().to_usize();
         Some(start..end)
     }
 
-    fn slice_rect_aligned<E>(slice: &[E], size: Size, rect: Rect<usize>) -> Option<&[E]> {
+    fn slice_rect_aligned<T: Int, E>(slice: &[E], size: Size<T>, rect: Rect<T>) -> Option<&[E]> {
         let range = Self::rect_to_range(size, rect)?;
         if range.end > slice.len() {
             return None;
@@ -234,10 +235,10 @@ impl LinearLayout for ColumnMajor {
         Some(&slice[range])
     }
 
-    fn slice_rect_aligned_mut<E>(
+    fn slice_rect_aligned_mut<T: Int, E>(
         slice: &mut [E],
-        size: Size,
-        rect: Rect<usize>,
+        size: Size<T>,
+        rect: Rect<T>,
     ) -> Option<&mut [E]> {
         let range = Self::rect_to_range(size, rect)?;
         if range.end > slice.len() {
@@ -451,5 +452,34 @@ mod tests {
             ColumnMajor::slice_rect_aligned_mut(slice, size, rect),
             Some(&mut [0, 1, 2, 3, 4, 5, 6, 7][..])
         );
+    }
+
+    #[test]
+    fn u16_pos_to_index_and_back_round_trips() {
+        let pos = Pos::<u16>::new(3, 1);
+        let index = ColumnMajor::pos_to_index(pos, 4);
+        assert_eq!(index, 13);
+        assert_eq!(ColumnMajor::index_to_pos::<u16>(index, 4), pos);
+    }
+
+    #[test]
+    fn u16_rect_to_range() {
+        let size = Size::<u16>::new(3, 4);
+        let rect = Rect::<u16>::from_ltwh(1, 0, 1, 4);
+        assert_eq!(ColumnMajor::rect_to_range(size, rect), Some(1..5));
+    }
+
+    #[test]
+    fn checked_index_to_pos_fits() {
+        assert_eq!(
+            ColumnMajor::checked_index_to_pos::<u8>(3, 2),
+            Some(Pos::new(1u8, 1u8))
+        );
+    }
+
+    #[test]
+    fn checked_index_to_pos_does_not_fit() {
+        // stride 400 => y coordinate would be 300, which does not fit in a u8.
+        assert_eq!(ColumnMajor::checked_index_to_pos::<u8>(300, 400), None);
     }
 }

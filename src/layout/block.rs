@@ -207,11 +207,13 @@ impl<const W: usize, const H: usize, G: Layout, C: Layout> Layout for Block<W, H
 impl<const W: usize, const H: usize, G: LinearLayout, C: LinearLayout> LinearLayout
     for Block<W, H, G, C>
 {
-    fn pos_to_index(pos: Pos<usize>, stride: usize) -> usize {
-        let block_x = pos.x / W;
-        let block_y = pos.y / H;
-        let cell_x = pos.x % W;
-        let cell_y = pos.y % H;
+    fn pos_to_index<T: Int>(pos: Pos<T>, stride: usize) -> usize {
+        let px = pos.x.to_usize();
+        let py = pos.y.to_usize();
+        let block_x = px / W;
+        let block_y = py / H;
+        let cell_x = px % W;
+        let cell_y = py % H;
 
         let block_pos = Pos::new(block_x, block_y);
         let cell_pos = Pos::new(cell_x, cell_y);
@@ -223,43 +225,47 @@ impl<const W: usize, const H: usize, G: LinearLayout, C: LinearLayout> LinearLay
         block_offset * (W * H) + cell_offset
     }
 
-    fn index_to_pos(index: usize, stride: usize) -> Pos<usize> {
+    fn index_to_pos<T: Int>(index: usize, stride: usize) -> Pos<T> {
         let cells_per_block = W * H;
         let block_index = index / cells_per_block;
         let cell_index = index % cells_per_block;
 
         let block_grid_width = stride / W;
-        let block_pos = G::index_to_pos(block_index, block_grid_width);
-        let cell_pos = C::index_to_pos(cell_index, W);
+        let block_pos: Pos<usize> = G::index_to_pos(block_index, block_grid_width);
+        let cell_pos: Pos<usize> = C::index_to_pos(cell_index, W);
 
-        block_pos * Pos::new(W, H) + cell_pos
+        let pos = block_pos * Pos::new(W, H) + cell_pos;
+        Pos::new(T::from_usize(pos.x), T::from_usize(pos.y))
     }
 
     fn len_aligned(size: Size) -> usize {
         G::len_aligned(size)
     }
 
-    fn rect_to_range(grid_size: Size, rect: Rect<usize>) -> Option<Range<usize>> {
+    fn rect_to_range<T: Int>(grid_size: Size<T>, rect: Rect<T>) -> Option<Range<usize>> {
         // Must be either:
         // - Elements entirely within a single block
         // - Elements spanning multiple blocks but full-sized
 
         // Check if the rectangle is aligned to the block size
-        if !rect.width().is_multiple_of(W) || !rect.height().is_multiple_of(H) {
+        if !rect.width().to_usize().is_multiple_of(W) || !rect.height().to_usize().is_multiple_of(H)
+        {
             return None;
         }
 
         // Calculate the start and end indices based on the block layout
-        let start = Self::pos_to_index(rect.top_left(), grid_size.width);
-        let end = Self::pos_to_index(rect.bottom_right() - Pos::new(1, 1), grid_size.width) + 1;
-        if end > grid_size.width * grid_size.height {
+        let grid_width = grid_size.width.to_usize();
+        let start = Self::pos_to_index(rect.top_left(), grid_width);
+        let end =
+            Self::pos_to_index(rect.bottom_right() - Pos::new(T::ONE, T::ONE), grid_width) + 1;
+        if end > grid_width * grid_size.height.to_usize() {
             return None;
         }
 
         Some(start..end)
     }
 
-    fn slice_rect_aligned<E>(slice: &[E], size: Size, rect: Rect<usize>) -> Option<&[E]> {
+    fn slice_rect_aligned<T: Int, E>(slice: &[E], size: Size<T>, rect: Rect<T>) -> Option<&[E]> {
         let range = Self::rect_to_range(size, rect)?;
         if range.end > slice.len() {
             return None;
@@ -267,10 +273,10 @@ impl<const W: usize, const H: usize, G: LinearLayout, C: LinearLayout> LinearLay
         Some(&slice[range])
     }
 
-    fn slice_rect_aligned_mut<E>(
+    fn slice_rect_aligned_mut<T: Int, E>(
         slice: &mut [E],
-        size: Size,
-        rect: Rect<usize>,
+        size: Size<T>,
+        rect: Rect<T>,
     ) -> Option<&mut [E]> {
         let range = Self::rect_to_range(size, rect)?;
         if range.end > slice.len() {
@@ -727,6 +733,38 @@ mod tests {
         assert_eq!(
             Block::<2, 2>::slice_rect_aligned_mut(slice, size, Rect::from_ltwh(0, 0, 4, 2)),
             Some(&mut [0, 1, 2, 3, 4, 5, 6, 7][..])
+        );
+    }
+
+    #[test]
+    fn u16_pos_to_index_and_index_to_pos_round_trips() {
+        // 0 1 | 4 5
+        // 2 3 | 6 7
+        let pos = Pos::<u16>::new(3, 1);
+        let index = Block::<2, 2>::pos_to_index(pos, 4);
+        assert_eq!(index, 7);
+        assert_eq!(Block::<2, 2>::index_to_pos::<u16>(index, 4), pos);
+    }
+
+    #[test]
+    fn u16_rect_to_range() {
+        let size = Size::<u16>::new(4, 2);
+        let rect = Rect::<u16>::from_ltwh(2, 0, 2, 2);
+        assert_eq!(Block::<2, 2>::rect_to_range(size, rect), Some(4..8));
+    }
+
+    #[test]
+    fn u16_slice_rect_aligned() {
+        #[rustfmt::skip]
+        let slice = &[
+            0, 1, 2, 3,
+            4, 5, 6, 7,
+        ];
+        let size = Size::<u16>::new(4, 2);
+        let rect = Rect::<u16>::from_ltwh(2, 0, 2, 2);
+        assert_eq!(
+            Block::<2, 2>::slice_rect_aligned(slice, size, rect),
+            Some(&[4, 5, 6, 7][..])
         );
     }
 }
