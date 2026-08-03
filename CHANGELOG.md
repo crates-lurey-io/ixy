@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.1] - 2026-08-02
+
+### Fixed
+
+- `Rect::row_rect()`/`Rect::col_rect()` didn't clamp `row`/`col`, contradicting their own doc
+  claim that the result is "guaranteed to be within the bounds of this rectangle": an
+  out-of-bounds index (e.g. `rect.row_rect(100)` on a 4-row rectangle) produced a rectangle
+  entirely outside the source rectangle instead of clamping to the last valid row/column.
+
 ## [0.7.0] - 2026-08-02
 
 Closes gaps found by an external source-level audit of a downstream consumer (retroglyph), which
