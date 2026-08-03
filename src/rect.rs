@@ -269,6 +269,34 @@ impl<T: Int> Rect<T> {
         Pos::new(self.x, self.y)
     }
 
+    /// Returns a rectangle with this rectangle's size, translated to [`Pos::ORIGIN`].
+    ///
+    /// This is the "same size, local coordinates" operation that scoping a child to a parent's
+    /// area needs, without decomposing into [`Rect::width`]/[`Rect::height`] and rebuilding. It
+    /// is a `const fn`, unlike [`HasSize::to_rect`].
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use ixy::Rect;
+    ///
+    /// let rect = Rect::from_ltwh(3, 4, 10, 20);
+    /// assert_eq!(rect.at_origin(), Rect::from_ltwh(0, 0, 10, 20));
+    ///
+    /// // Usable from a `const fn`, which the `HasSize::to_rect` trait method is not.
+    /// const LOCAL_AREA: Rect<u16> = Rect::from_ltwh(3, 4, 10, 20).at_origin();
+    /// assert_eq!(LOCAL_AREA, Rect::from_ltwh(0, 0, 10, 20));
+    /// ```
+    #[must_use]
+    pub const fn at_origin(&self) -> Self {
+        Self {
+            x: T::ZERO,
+            y: T::ZERO,
+            w: self.w,
+            h: self.h,
+        }
+    }
+
     /// Returns the top-right corner of the rectangle as a [`Pos<T>`].
     ///
     /// ## Examples
@@ -1664,6 +1692,31 @@ mod tests {
     fn inset_then_outset_is_identity_within_bounds() {
         let rect = Rect::from_ltwh(5, 5, 10, 10);
         assert_eq!(rect.inset(1, 2, 3, 4).outset(1, 2, 3, 4), rect);
+    }
+
+    #[test]
+    fn at_origin_keeps_size_and_moves_to_origin() {
+        let rect = Rect::from_ltwh(3, 4, 10, 20);
+        assert_eq!(rect.at_origin(), Rect::from_ltwh(0, 0, 10, 20));
+        assert_eq!(rect.at_origin().size(), rect.size());
+    }
+
+    #[test]
+    fn at_origin_is_const() {
+        const LOCAL_AREA: Rect<u16> = Rect::from_ltwh(3, 4, 10, 20).at_origin();
+        assert_eq!(LOCAL_AREA, Rect::from_ltwh(0, 0, 10, 20));
+    }
+
+    #[test]
+    fn at_origin_matches_size_to_rect() {
+        let rect = Rect::from_ltwh(3, 4, 10, 20);
+        assert_eq!(rect.at_origin(), rect.size().to_rect());
+    }
+
+    #[test]
+    fn at_origin_of_origin_rect_is_identity() {
+        let rect = Rect::from_ltwh(0, 0, 10, 20);
+        assert_eq!(rect.at_origin(), rect);
     }
 
     #[test]
