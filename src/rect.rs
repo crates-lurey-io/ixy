@@ -484,9 +484,23 @@ impl<T: Int> Rect<T> {
 
     /// Returns a sub-rectangle representing a row within this rectangle.
     ///
-    /// The returned rectangle is guaranteed to be within the bounds of this rectangle.
+    /// The returned rectangle is guaranteed to be within the bounds of this rectangle: `row` is
+    /// clamped (saturating) to the last valid row if it would otherwise land outside.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use ixy::Rect;
+    ///
+    /// let rect = Rect::from_ltwh(0, 0, 4, 4);
+    /// assert_eq!(rect.row_rect(1), Rect::from_ltwh(0, 1, 4, 1));
+    ///
+    /// // Out-of-bounds rows clamp to the last valid row instead of escaping the rectangle.
+    /// assert_eq!(rect.row_rect(10), rect.row_rect(3));
+    /// ```
     #[must_use]
     pub fn row_rect(&self, row: usize) -> Self {
+        let row = row.min(self.height_usize().saturating_sub(1));
         Self {
             x: self.x,
             y: self.y + T::from_usize(row),
@@ -497,9 +511,23 @@ impl<T: Int> Rect<T> {
 
     /// Returns a sub-rectangle representing a column within this rectangle.
     ///
-    /// The returned rectangle is guaranteed to be within the bounds of this rectangle.
+    /// The returned rectangle is guaranteed to be within the bounds of this rectangle: `col` is
+    /// clamped (saturating) to the last valid column if it would otherwise land outside.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use ixy::Rect;
+    ///
+    /// let rect = Rect::from_ltwh(0, 0, 4, 4);
+    /// assert_eq!(rect.col_rect(1), Rect::from_ltwh(1, 0, 1, 4));
+    ///
+    /// // Out-of-bounds columns clamp to the last valid column instead of escaping the rectangle.
+    /// assert_eq!(rect.col_rect(10), rect.col_rect(3));
+    /// ```
     #[must_use]
     pub fn col_rect(&self, col: usize) -> Self {
+        let col = col.min(self.width_usize().saturating_sub(1));
         Self {
             x: self.x + T::from_usize(col),
             y: self.y,
@@ -1644,5 +1672,57 @@ mod tests {
         assert_eq!(col_rect.top(), 2);
         assert_eq!(col_rect.right(), 2);
         assert_eq!(col_rect.bottom(), 6);
+    }
+
+    #[test]
+    fn row_rect_out_of_bounds_clamps_to_last_row() {
+        // Regression test for https://github.com/crates-lurey-io/ixy/issues/9: an out-of-bounds
+        // row used to escape the rectangle entirely instead of clamping, contradicting the doc.
+        let rect = Rect::new(0u16, 0, 4, 4);
+        assert_eq!(rect.row_rect(10), rect.row_rect(3));
+        assert_eq!(rect.row_rect(10), Rect::from_ltwh(0, 3, 4, 1));
+    }
+
+    #[test]
+    fn col_rect_out_of_bounds_clamps_to_last_col() {
+        let rect = Rect::new(0u16, 0, 4, 4);
+        assert_eq!(rect.col_rect(10), rect.col_rect(3));
+        assert_eq!(rect.col_rect(10), Rect::from_ltwh(3, 0, 1, 4));
+    }
+
+    #[test]
+    fn row_rect_result_always_within_bounds() {
+        let rect = Rect::from_ltwh(0u16, 0, 4, 4);
+        for row in 0..10 {
+            let sub = rect.row_rect(row);
+            assert!(
+                rect.contains_rect(sub),
+                "row_rect({row}) = {sub:?} escaped {rect:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn col_rect_result_always_within_bounds() {
+        let rect = Rect::from_ltwh(0u16, 0, 4, 4);
+        for col in 0..10 {
+            let sub = rect.col_rect(col);
+            assert!(
+                rect.contains_rect(sub),
+                "col_rect({col}) = {sub:?} escaped {rect:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn row_rect_last_valid_row_touches_bottom_edge() {
+        let rect = Rect::from_ltwh(0, 0, 4, 4);
+        assert_eq!(rect.row_rect(3).bottom(), rect.bottom());
+    }
+
+    #[test]
+    fn col_rect_last_valid_col_touches_right_edge() {
+        let rect = Rect::from_ltwh(0, 0, 4, 4);
+        assert_eq!(rect.col_rect(3).right(), rect.right());
     }
 }
