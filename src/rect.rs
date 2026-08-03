@@ -3,7 +3,7 @@ use core::{fmt::Display, ops};
 use crate::{
     HasSize, Pos, Size,
     int::Int,
-    layout::{Layout, RowMajor},
+    layout::{ColumnMajor, Layout, RowMajor},
 };
 
 /// A macro that creates a rectangle with the given coordinates.
@@ -476,7 +476,7 @@ impl<T: Int> Rect<T> {
     /// For additional traversal methods, see the [`layout`][] module.
     ///
     /// [`layout`]: crate::layout
-    pub fn pos_iter(&self) -> impl Iterator<Item = Pos<T>> {
+    pub fn pos_iter(&self) -> impl Iterator<Item = Pos<T>> + use<T> {
         RowMajor::iter_pos(*self)
     }
 
@@ -532,6 +532,135 @@ impl<T: Int> Rect<T> {
             w: T::ONE,
             h: self.h,
         }
+    }
+
+    /// The single-row rects of `self`, top to bottom. Empty if `self` is empty.
+    ///
+    /// This is the iterator form of [`Rect::row_rect`]: `rect.rows().nth(i) == Some(rect.row_rect(i))`
+    /// for any in-range `i`. Unlike [`Rect::row_rect`], which clamps out-of-range indices to the
+    /// last valid row, `rows()` simply stops after `self.height()` rects instead of clamping.
+    ///
+    /// An empty rectangle (zero width *or* zero height, per [`Rect::is_empty`]) yields no rows at
+    /// all, even when its height is nonzero: a rect with `width() == 0` has no columns to give a
+    /// row any content, and the row rects that would otherwise be produced are themselves empty,
+    /// so `rows()` treats such a rectangle the same as a `0`-height one.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use ixy::Rect;
+    ///
+    /// let rect = Rect::from_ltwh(0, 0, 3, 2);
+    /// let rows: Vec<_> = rect.rows().collect();
+    /// assert_eq!(rows, &[Rect::from_ltwh(0, 0, 3, 1), Rect::from_ltwh(0, 1, 3, 1)]);
+    ///
+    /// // The motivating case: building per-row output by iterating rows.
+    /// let mut lines = Vec::new();
+    /// for row in rect.rows() {
+    ///     lines.push(format!("row at y={} spans {} cells", row.top(), row.width()));
+    /// }
+    /// assert_eq!(lines, &["row at y=0 spans 3 cells", "row at y=1 spans 3 cells"]);
+    ///
+    /// // A zero-width rect yields no rows, even though its height is nonzero.
+    /// let empty = Rect::from_ltwh(0, 0, 0, 3);
+    /// assert_eq!(empty.rows().count(), 0);
+    /// ```
+    #[must_use]
+    pub fn rows(&self) -> impl ExactSizeIterator<Item = Self> {
+        let back = if self.is_empty() {
+            0
+        } else {
+            self.height_usize()
+        };
+        Rows {
+            rect: *self,
+            front: 0,
+            back,
+        }
+    }
+
+    /// The single-column rects of `self`, left to right. Empty if `self` is empty.
+    ///
+    /// This is the iterator form of [`Rect::col_rect`]: `rect.cols().nth(i) == Some(rect.col_rect(i))`
+    /// for any in-range `i`. Unlike [`Rect::col_rect`], which clamps out-of-range indices to the
+    /// last valid column, `cols()` simply stops after `self.width()` rects instead of clamping.
+    ///
+    /// An empty rectangle (zero width *or* zero height, per [`Rect::is_empty`]) yields no columns
+    /// at all, even when its width is nonzero, mirroring [`Rect::rows`]'s handling of a zero
+    /// height.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use ixy::Rect;
+    ///
+    /// let rect = Rect::from_ltwh(0, 0, 2, 3);
+    /// let cols: Vec<_> = rect.cols().collect();
+    /// assert_eq!(cols, &[Rect::from_ltwh(0, 0, 1, 3), Rect::from_ltwh(1, 0, 1, 3)]);
+    ///
+    /// // A zero-height rect yields no columns, even though its width is nonzero.
+    /// let empty = Rect::from_ltwh(0, 0, 3, 0);
+    /// assert_eq!(empty.cols().count(), 0);
+    /// ```
+    #[must_use]
+    pub fn cols(&self) -> impl ExactSizeIterator<Item = Self> {
+        let back = if self.is_empty() {
+            0
+        } else {
+            self.width_usize()
+        };
+        Cols {
+            rect: *self,
+            front: 0,
+            back,
+        }
+    }
+
+    /// The positions of `self`, grouped per row (top to bottom, left to right within a row).
+    ///
+    /// Flattening the result yields the same sequence as [`Rect::pos_iter`]; grouping simply
+    /// exposes the row boundaries, which is convenient for building output line by line. Each
+    /// inner iterator is the [`Rect::pos_iter`] of the corresponding [`Rect::rows`] entry, so an
+    /// empty `self` (see [`Rect::rows`]) yields no rows at all.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use ixy::Rect;
+    ///
+    /// let rect = Rect::from_ltwh(0, 0, 2, 2);
+    /// let mut lines = Vec::new();
+    /// for row in rect.row_pos_iter() {
+    ///     let line: Vec<_> = row.map(|pos| format!("({},{})", pos.x, pos.y)).collect();
+    ///     lines.push(line.join(" "));
+    /// }
+    /// assert_eq!(lines, &["(0,0) (1,0)", "(0,1) (1,1)"]);
+    /// ```
+    #[must_use]
+    pub fn row_pos_iter(&self) -> impl ExactSizeIterator<Item = impl Iterator<Item = Pos<T>>> {
+        self.rows().map(|row| row.pos_iter())
+    }
+
+    /// The positions of `self`, grouped per column (left to right, top to bottom within a
+    /// column).
+    ///
+    /// Flattening the result yields the same sequence as [`ColumnMajor::iter_pos`]. Each inner
+    /// iterator is the [`ColumnMajor`] position iteration of the corresponding [`Rect::cols`]
+    /// entry, so an empty `self` (see [`Rect::cols`]) yields no columns at all.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use ixy::{Rect, layout::{ColumnMajor, Layout}};
+    ///
+    /// let rect = Rect::from_ltwh(0, 0, 2, 2);
+    /// let grouped: Vec<Vec<_>> = rect.col_pos_iter().map(Iterator::collect).collect();
+    /// let flattened: Vec<_> = grouped.into_iter().flatten().collect();
+    /// assert_eq!(flattened, ColumnMajor::iter_pos(rect).collect::<Vec<_>>());
+    /// ```
+    #[must_use]
+    pub fn col_pos_iter(&self) -> impl ExactSizeIterator<Item = impl Iterator<Item = Pos<T>>> {
+        self.cols().map(|col| ColumnMajor::iter_pos(col))
     }
 
     /// Returns the smallest rectangle that contains both `self` and `other`.
@@ -790,6 +919,96 @@ impl<T: Int> Rect<T> {
     }
 }
 
+/// Iterator over the single-row rects of a [`Rect<T>`], top to bottom.
+///
+/// Returned by [`Rect::rows`].
+struct Rows<T: Int> {
+    rect: Rect<T>,
+    front: usize,
+    back: usize,
+}
+
+impl<T: Int> Iterator for Rows<T> {
+    type Item = Rect<T>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.front >= self.back {
+            return None;
+        }
+        let row = self.rect.row_rect(self.front);
+        self.front += 1;
+        Some(row)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.len();
+        (len, Some(len))
+    }
+}
+
+impl<T: Int> ExactSizeIterator for Rows<T> {
+    fn len(&self) -> usize {
+        self.back - self.front
+    }
+}
+
+impl<T: Int> DoubleEndedIterator for Rows<T> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if self.front >= self.back {
+            return None;
+        }
+        self.back -= 1;
+        Some(self.rect.row_rect(self.back))
+    }
+}
+
+impl<T: Int> core::iter::FusedIterator for Rows<T> {}
+
+/// Iterator over the single-column rects of a [`Rect<T>`], left to right.
+///
+/// Returned by [`Rect::cols`].
+struct Cols<T: Int> {
+    rect: Rect<T>,
+    front: usize,
+    back: usize,
+}
+
+impl<T: Int> Iterator for Cols<T> {
+    type Item = Rect<T>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.front >= self.back {
+            return None;
+        }
+        let col = self.rect.col_rect(self.front);
+        self.front += 1;
+        Some(col)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.len();
+        (len, Some(len))
+    }
+}
+
+impl<T: Int> ExactSizeIterator for Cols<T> {
+    fn len(&self) -> usize {
+        self.back - self.front
+    }
+}
+
+impl<T: Int> DoubleEndedIterator for Cols<T> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if self.front >= self.back {
+            return None;
+        }
+        self.back -= 1;
+        Some(self.rect.col_rect(self.back))
+    }
+}
+
+impl<T: Int> core::iter::FusedIterator for Cols<T> {}
+
 /// Iterator over the positions in a [`Rect<T>`], in row-major order.
 ///
 /// Returned by [`Rect::into_iter`].
@@ -999,7 +1218,7 @@ mod tests {
     extern crate alloc;
 
     use super::*;
-    use alloc::{string::ToString, vec::Vec};
+    use alloc::{string::ToString, vec, vec::Vec};
 
     #[test]
     fn rect_error_display() {
@@ -1618,6 +1837,259 @@ mod tests {
         iter.next();
         assert_eq!(iter.len(), 5);
         assert_eq!(iter.count(), 5);
+    }
+
+    #[test]
+    fn rows_non_origin_rect() {
+        let rect = Rect::from_ltwh(2, 3, 4, 3);
+        let rows: Vec<_> = rect.rows().collect();
+        assert_eq!(
+            rows,
+            &[
+                Rect::from_ltwh(2, 3, 4, 1),
+                Rect::from_ltwh(2, 4, 4, 1),
+                Rect::from_ltwh(2, 5, 4, 1),
+            ]
+        );
+    }
+
+    #[test]
+    fn cols_non_origin_rect() {
+        let rect = Rect::from_ltwh(2, 3, 3, 4);
+        let cols: Vec<_> = rect.cols().collect();
+        assert_eq!(
+            cols,
+            &[
+                Rect::from_ltwh(2, 3, 1, 4),
+                Rect::from_ltwh(3, 3, 1, 4),
+                Rect::from_ltwh(4, 3, 1, 4),
+            ]
+        );
+    }
+
+    #[test]
+    fn rows_len_before_and_after_partial_consumption() {
+        let rect = Rect::from_ltwh(0, 0, 4, 5);
+        let mut rows = rect.rows();
+        assert_eq!(rows.len(), 5);
+        rows.next();
+        rows.next();
+        assert_eq!(rows.len(), 3);
+        assert_eq!(rows.count(), 3);
+    }
+
+    #[test]
+    fn cols_len_before_and_after_partial_consumption() {
+        let rect = Rect::from_ltwh(0, 0, 5, 4);
+        let mut cols = rect.cols();
+        assert_eq!(cols.len(), 5);
+        cols.next();
+        cols.next();
+        assert_eq!(cols.len(), 3);
+        assert_eq!(cols.count(), 3);
+    }
+
+    #[test]
+    fn rows_len_after_next_back() {
+        // `Rows` is a private iterator struct backing `Rect::rows`; constructed directly here
+        // (within the same module) to exercise `DoubleEndedIterator`, which is implemented on the
+        // concrete type even though the public `Rect::rows` signature only promises
+        // `ExactSizeIterator`.
+        let rect = Rect::from_ltwh(0, 0, 2, 4);
+        let mut rows = Rows {
+            rect,
+            front: 0,
+            back: rect.height_usize(),
+        };
+        assert_eq!(rows.len(), 4);
+        assert_eq!(rows.next_back(), Some(Rect::from_ltwh(0, 3, 2, 1)));
+        assert_eq!(rows.len(), 3);
+        assert_eq!(rows.next(), Some(Rect::from_ltwh(0, 0, 2, 1)));
+        assert_eq!(rows.len(), 2);
+    }
+
+    #[test]
+    fn cols_len_after_next_back() {
+        let rect = Rect::from_ltwh(0, 0, 4, 2);
+        let mut cols = Cols {
+            rect,
+            front: 0,
+            back: rect.width_usize(),
+        };
+        assert_eq!(cols.len(), 4);
+        assert_eq!(cols.next_back(), Some(Rect::from_ltwh(3, 0, 1, 2)));
+        assert_eq!(cols.len(), 3);
+        assert_eq!(cols.next(), Some(Rect::from_ltwh(0, 0, 1, 2)));
+        assert_eq!(cols.len(), 2);
+    }
+
+    #[test]
+    fn rows_empty_zero_width() {
+        let rect = Rect::from_ltwh(0, 0, 0, 3);
+        assert!(rect.is_empty());
+        assert_eq!(rect.rows().count(), 0);
+        assert_eq!(rect.rows().len(), 0);
+    }
+
+    #[test]
+    fn rows_empty_zero_height() {
+        let rect = Rect::from_ltwh(0, 0, 3, 0);
+        assert_eq!(rect.rows().count(), 0);
+    }
+
+    #[test]
+    fn rows_empty_zero_by_zero() {
+        assert_eq!(Rect::<i32>::EMPTY.rows().count(), 0);
+        assert_eq!(Rect::<i32>::EMPTY.cols().count(), 0);
+    }
+
+    #[test]
+    fn cols_empty_zero_width() {
+        let rect = Rect::from_ltwh(0, 0, 0, 3);
+        assert_eq!(rect.cols().count(), 0);
+    }
+
+    #[test]
+    fn cols_empty_zero_height() {
+        let rect = Rect::from_ltwh(0, 0, 3, 0);
+        assert!(rect.is_empty());
+        assert_eq!(rect.cols().count(), 0);
+        assert_eq!(rect.cols().len(), 0);
+    }
+
+    #[test]
+    fn rows_1x1_rect() {
+        let rect = Rect::from_ltwh(5, 5, 1, 1);
+        let rows: Vec<_> = rect.rows().collect();
+        assert_eq!(rows, &[rect]);
+    }
+
+    #[test]
+    fn cols_1x1_rect() {
+        let rect = Rect::from_ltwh(5, 5, 1, 1);
+        let cols: Vec<_> = rect.cols().collect();
+        assert_eq!(cols, &[rect]);
+    }
+
+    #[test]
+    fn rows_agrees_with_row_rect_in_range() {
+        let rect = Rect::from_ltwh(1, 2, 4, 3);
+        for (i, row) in rect.rows().enumerate() {
+            assert_eq!(Some(row), Some(rect.row_rect(i)));
+        }
+    }
+
+    #[test]
+    fn cols_agrees_with_col_rect_in_range() {
+        let rect = Rect::from_ltwh(1, 2, 4, 3);
+        for (i, col) in rect.cols().enumerate() {
+            assert_eq!(Some(col), Some(rect.col_rect(i)));
+        }
+    }
+
+    #[test]
+    fn row_pos_iter_flattens_to_pos_iter() {
+        let rect = Rect::from_ltwh(1, 2, 3, 2);
+        let flattened: Vec<_> = rect.row_pos_iter().flatten().collect();
+        let via_pos_iter: Vec<_> = rect.pos_iter().collect();
+        assert_eq!(flattened, via_pos_iter);
+    }
+
+    #[test]
+    fn row_pos_iter_len_and_grouping() {
+        let rect = Rect::from_ltwh(0, 0, 2, 3);
+        let iter = rect.row_pos_iter();
+        assert_eq!(iter.len(), 3);
+        let grouped: Vec<Vec<_>> = iter.map(Iterator::collect).collect();
+        assert_eq!(
+            grouped,
+            vec![
+                vec![Pos::new(0, 0), Pos::new(1, 0)],
+                vec![Pos::new(0, 1), Pos::new(1, 1)],
+                vec![Pos::new(0, 2), Pos::new(1, 2)],
+            ]
+        );
+    }
+
+    #[test]
+    fn row_pos_iter_empty() {
+        let rect = Rect::from_ltwh(0, 0, 0, 3);
+        assert_eq!(rect.row_pos_iter().count(), 0);
+    }
+
+    #[test]
+    fn col_pos_iter_flattens_to_column_major_iter_pos() {
+        use crate::layout::{ColumnMajor, Layout};
+
+        let rect = Rect::from_ltwh(1, 2, 3, 2);
+        let flattened: Vec<_> = rect.col_pos_iter().flatten().collect();
+        let via_column_major: Vec<_> = ColumnMajor::iter_pos(rect).collect();
+        assert_eq!(flattened, via_column_major);
+    }
+
+    #[test]
+    fn col_pos_iter_len_and_grouping() {
+        let rect = Rect::from_ltwh(0, 0, 3, 2);
+        let iter = rect.col_pos_iter();
+        assert_eq!(iter.len(), 3);
+        let grouped: Vec<Vec<_>> = iter.map(Iterator::collect).collect();
+        assert_eq!(
+            grouped,
+            vec![
+                vec![Pos::new(0, 0), Pos::new(0, 1)],
+                vec![Pos::new(1, 0), Pos::new(1, 1)],
+                vec![Pos::new(2, 0), Pos::new(2, 1)],
+            ]
+        );
+    }
+
+    #[test]
+    fn col_pos_iter_empty() {
+        let rect = Rect::from_ltwh(0, 0, 3, 0);
+        assert_eq!(rect.col_pos_iter().count(), 0);
+    }
+
+    #[test]
+    fn rows_u16_coordinates() {
+        let rect = Rect::from_ltwh(50_000u16, 0, 3, 2);
+        let rows: Vec<_> = rect.rows().collect();
+        assert_eq!(
+            rows,
+            &[
+                Rect::from_ltwh(50_000u16, 0, 3, 1),
+                Rect::from_ltwh(50_000u16, 1, 3, 1),
+            ]
+        );
+    }
+
+    #[test]
+    fn cols_u16_coordinates() {
+        let rect = Rect::from_ltwh(50_000u16, 0, 3, 2);
+        let cols: Vec<_> = rect.cols().collect();
+        assert_eq!(
+            cols,
+            &[
+                Rect::from_ltwh(50_000u16, 0, 1, 2),
+                Rect::from_ltwh(50_001u16, 0, 1, 2),
+                Rect::from_ltwh(50_002u16, 0, 1, 2),
+            ]
+        );
+    }
+
+    #[test]
+    fn rows_double_ended_fused() {
+        let rect = Rect::from_ltwh(0, 0, 1, 3);
+        let mut rows = Rows {
+            rect,
+            front: 0,
+            back: rect.height_usize(),
+        };
+        rows.next();
+        rows.next();
+        rows.next();
+        assert_eq!(rows.next(), None);
+        assert_eq!(rows.next(), None);
+        assert_eq!(rows.next_back(), None);
     }
 
     #[test]
