@@ -589,6 +589,68 @@ impl<T: Int> Rect<T> {
         }
     }
 
+    /// Returns a rectangle shrunk asymmetrically by `top`, `right`, `bottom`, and `left`.
+    ///
+    /// Unlike [`Rect::shrink`], the amount removed from each edge can differ. The operation
+    /// saturates instead of overflowing/panicking: if the insets would push an edge past the
+    /// opposite edge (e.g. on a too-small rectangle), the result collapses to a zero-size
+    /// rectangle at the point where the edges met, anchored by the top/left insets.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use ixy::Rect;
+    ///
+    /// let rect = Rect::from_ltwh(2, 2, 6, 6);
+    /// assert_eq!(rect.inset(1, 2, 1, 2), Rect::from_ltwh(4, 3, 2, 4));
+    ///
+    /// // Insets larger than the rectangle saturate to an empty rectangle instead of panicking.
+    /// let small = Rect::from_ltwh(0u16, 0, 4, 4);
+    /// assert_eq!(small.inset(0, 10, 0, 0), Rect::from_ltwh(0, 0, 0, 4));
+    /// ```
+    #[must_use]
+    pub fn inset(&self, top: T, right: T, bottom: T, left: T) -> Self {
+        let l = self.x.saturating_add(left);
+        let t = self.y.saturating_add(top);
+        let r = self.right().saturating_sub(right).max(l);
+        let b = self.bottom().saturating_sub(bottom).max(t);
+
+        Self {
+            x: l,
+            y: t,
+            w: r - l,
+            h: b - t,
+        }
+    }
+
+    /// Returns a rectangle grown asymmetrically by `top`, `right`, `bottom`, and `left`.
+    ///
+    /// Unlike [`Rect::inflate`], the amount added to each edge can differ. The operation
+    /// saturates at `T::MIN`/`T::MAX` instead of overflowing/panicking.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use ixy::Rect;
+    ///
+    /// let rect = Rect::from_ltwh(4, 3, 2, 4);
+    /// assert_eq!(rect.outset(1, 2, 1, 2), Rect::from_ltwh(2, 2, 6, 6));
+    /// ```
+    #[must_use]
+    pub fn outset(&self, top: T, right: T, bottom: T, left: T) -> Self {
+        let l = self.x.saturating_sub(left);
+        let t = self.y.saturating_sub(top);
+        let r = self.right().saturating_add(right).max(l);
+        let b = self.bottom().saturating_add(bottom).max(t);
+
+        Self {
+            x: l,
+            y: t,
+            w: r - l,
+            h: b - t,
+        }
+    }
+
     /// Returns the center point of the rectangle.
     ///
     /// Integer division rounds the result towards the top-left.
@@ -629,6 +691,76 @@ impl<T: Int> Rect<T> {
             && other.x < self.right()
             && self.y < other.bottom()
             && other.y < self.bottom()
+    }
+
+    /// Returns `self` moved so it fits inside `bounds`, keeping its size.
+    ///
+    /// Unlike [`Rect::intersect`], this never shrinks `self`; it only translates it. If `self` is
+    /// larger than `bounds` on an axis, it is anchored to `bounds`'s top-left on that axis instead
+    /// (it cannot both keep its size and fit). The operation is saturating, so it never panics or
+    /// overflows, even for unsigned `T`.
+    ///
+    /// This is the common "keep this popup/viewport on screen" operation.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use ixy::Rect;
+    ///
+    /// let bounds = Rect::from_ltwh(0, 0, 10, 10);
+    ///
+    /// // Already inside: unchanged.
+    /// let inside = Rect::from_ltwh(2, 2, 3, 3);
+    /// assert_eq!(inside.clamp_within(bounds), inside);
+    ///
+    /// // Hanging off the right/bottom edges: slides back in, same size.
+    /// let overhanging = Rect::from_ltwh(8, 8, 4, 4);
+    /// assert_eq!(overhanging.clamp_within(bounds), Rect::from_ltwh(6, 6, 4, 4));
+    ///
+    /// // Larger than bounds: anchored to the top-left, saturating instead of shrinking.
+    /// let too_big = Rect::from_ltwh(0, 0, 20, 20);
+    /// assert_eq!(too_big.clamp_within(bounds), Rect::from_ltwh(0, 0, 20, 20));
+    /// ```
+    #[must_use]
+    pub fn clamp_within(&self, bounds: Self) -> Self {
+        let max_x = bounds.right().saturating_sub(self.w).max(bounds.left());
+        let max_y = bounds.bottom().saturating_sub(self.h).max(bounds.top());
+
+        Self {
+            x: self.x.clamp(bounds.left(), max_x),
+            y: self.y.clamp(bounds.top(), max_y),
+            w: self.w,
+            h: self.h,
+        }
+    }
+
+    /// Returns `self`'s size centered within `bounds`, then clamped via [`Rect::clamp_within`].
+    ///
+    /// If `self` is larger than `bounds` on an axis, it is anchored to `bounds`'s top-left on that
+    /// axis, matching [`Rect::clamp_within`]'s saturating behavior.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use ixy::Rect;
+    ///
+    /// let bounds = Rect::from_ltwh(0, 0, 10, 10);
+    /// let popup = Rect::from_ltwh(0, 0, 4, 4);
+    /// assert_eq!(popup.centered_in(bounds), Rect::from_ltwh(3, 3, 4, 4));
+    /// ```
+    #[must_use]
+    pub fn centered_in(&self, bounds: Self) -> Self {
+        let two = T::ONE + T::ONE;
+        let dx = bounds.width().saturating_sub(self.w) / two;
+        let dy = bounds.height().saturating_sub(self.h) / two;
+
+        Self {
+            x: bounds.left().saturating_add(dx),
+            y: bounds.top().saturating_add(dy),
+            w: self.w,
+            h: self.h,
+        }
+        .clamp_within(bounds)
     }
 }
 
@@ -778,6 +910,33 @@ impl<T: Int> ops::MulAssign<T> for Rect<T> {
         self.y *= rhs;
         self.w *= rhs;
         self.h *= rhs;
+    }
+}
+
+impl<T: Int> ops::Mul<Size<T>> for Rect<T> {
+    type Output = Self;
+
+    /// Scales the rectangle's position and dimensions per-axis: `x`/`w` by `rhs.width`, and
+    /// `y`/`h` by `rhs.height`.
+    ///
+    /// Unlike the uniform `Rect * T`, this allows non-uniform scaling, such as converting a
+    /// cell-space rectangle to pixel-space when cells aren't square.
+    fn mul(self, rhs: Size<T>) -> Self::Output {
+        Self {
+            x: self.x * rhs.width,
+            y: self.y * rhs.height,
+            w: self.w * rhs.width,
+            h: self.h * rhs.height,
+        }
+    }
+}
+
+impl<T: Int> ops::MulAssign<Size<T>> for Rect<T> {
+    fn mul_assign(&mut self, rhs: Size<T>) {
+        self.x *= rhs.width;
+        self.y *= rhs.height;
+        self.w *= rhs.width;
+        self.h *= rhs.height;
     }
 }
 
@@ -1135,6 +1294,149 @@ mod tests {
     }
 
     #[test]
+    fn inset_asymmetric() {
+        let rect = Rect::from_ltwh(2, 2, 6, 6);
+        assert_eq!(rect.inset(1, 2, 1, 2), Rect::from_ltwh(4, 3, 2, 4));
+    }
+
+    #[test]
+    fn inset_matches_shrink_when_uniform() {
+        let rect = Rect::from_ltwh(1, 1, 6, 6);
+        assert_eq!(rect.inset(1, 1, 1, 1), rect.shrink(1, 1));
+    }
+
+    #[test]
+    fn inset_zero_is_identity() {
+        let rect = Rect::from_ltwh(1, 2, 3, 4);
+        assert_eq!(rect.inset(0, 0, 0, 0), rect);
+    }
+
+    #[test]
+    fn inset_saturates_on_unsigned_underflow() {
+        let rect = Rect::from_ltwh(0u16, 0, 4, 4);
+        assert_eq!(rect.inset(0, 10, 0, 0), Rect::from_ltwh(0, 0, 0, 4));
+        assert_eq!(rect.inset(0, 0, 10, 0), Rect::from_ltwh(0, 0, 4, 0));
+    }
+
+    #[test]
+    fn inset_saturates_when_left_and_right_cross() {
+        let rect = Rect::from_ltwh(0u16, 0, 4, 4);
+        assert_eq!(rect.inset(0, 10, 0, 10), Rect::from_ltwh(10, 0, 0, 4));
+    }
+
+    #[test]
+    fn outset_asymmetric() {
+        let rect = Rect::from_ltwh(4, 3, 2, 4);
+        assert_eq!(rect.outset(1, 2, 1, 2), Rect::from_ltwh(2, 2, 6, 6));
+    }
+
+    #[test]
+    fn outset_matches_inflate_when_uniform() {
+        let rect = Rect::from_ltwh(3, 3, 5, 5);
+        assert_eq!(rect.outset(1, 1, 1, 1), rect.inflate(1, 1));
+    }
+
+    #[test]
+    fn outset_saturates_on_unsigned_underflow() {
+        // Requesting a left outset of 10 from x=1 can only grow to x=0 (saturating), so the
+        // effective growth is capped at 1, not the full requested 10.
+        let rect = Rect::from_ltwh(1u16, 1, 4, 4);
+        assert_eq!(rect.outset(0, 0, 0, 10), Rect::from_ltwh(0, 1, 5, 4));
+    }
+
+    #[test]
+    fn outset_saturates_at_max() {
+        let rect = Rect::from_ltwh(u8::MAX - 2, 0, 2, 2);
+        assert_eq!(rect.outset(0, 10, 0, 0).right(), u8::MAX);
+    }
+
+    #[test]
+    fn inset_then_outset_is_identity_within_bounds() {
+        let rect = Rect::from_ltwh(5, 5, 10, 10);
+        assert_eq!(rect.inset(1, 2, 3, 4).outset(1, 2, 3, 4), rect);
+    }
+
+    #[test]
+    fn clamp_within_already_inside_is_unchanged() {
+        let bounds = Rect::from_ltwh(0, 0, 10, 10);
+        let inside = Rect::from_ltwh(2, 2, 3, 3);
+        assert_eq!(inside.clamp_within(bounds), inside);
+    }
+
+    #[test]
+    fn clamp_within_slides_back_into_bounds() {
+        let bounds = Rect::from_ltwh(0, 0, 10, 10);
+        let overhanging = Rect::from_ltwh(8, 8, 4, 4);
+        assert_eq!(
+            overhanging.clamp_within(bounds),
+            Rect::from_ltwh(6, 6, 4, 4)
+        );
+    }
+
+    #[test]
+    fn clamp_within_negative_position_slides_forward() {
+        let bounds = Rect::from_ltwh(0, 0, 10, 10);
+        let off_screen = Rect::from_ltwh(-5, -5, 4, 4);
+        assert_eq!(off_screen.clamp_within(bounds), Rect::from_ltwh(0, 0, 4, 4));
+    }
+
+    #[test]
+    fn clamp_within_larger_than_bounds_anchors_top_left() {
+        let bounds = Rect::from_ltwh(0, 0, 10, 10);
+        let too_big = Rect::from_ltwh(0, 0, 20, 20);
+        assert_eq!(too_big.clamp_within(bounds), Rect::from_ltwh(0, 0, 20, 20));
+    }
+
+    #[test]
+    fn clamp_within_unsigned_does_not_panic() {
+        let bounds = Rect::from_ltwh(5u16, 5, 10, 10);
+        let too_big = Rect::from_ltwh(0u16, 0, 30, 30);
+        assert_eq!(too_big.clamp_within(bounds), Rect::from_ltwh(5, 5, 30, 30));
+    }
+
+    #[test]
+    fn clamp_within_offset_bounds() {
+        let bounds = Rect::from_ltwh(100, 100, 10, 10);
+        let rect = Rect::from_ltwh(0, 0, 4, 4);
+        assert_eq!(rect.clamp_within(bounds), Rect::from_ltwh(100, 100, 4, 4));
+    }
+
+    #[test]
+    fn centered_in_even_bounds() {
+        let bounds = Rect::from_ltwh(0, 0, 10, 10);
+        let popup = Rect::from_ltwh(0, 0, 4, 4);
+        assert_eq!(popup.centered_in(bounds), Rect::from_ltwh(3, 3, 4, 4));
+    }
+
+    #[test]
+    fn centered_in_odd_bounds_rounds_towards_top_left() {
+        let bounds = Rect::from_ltwh(0, 0, 9, 9);
+        let popup = Rect::from_ltwh(0, 0, 4, 4);
+        assert_eq!(popup.centered_in(bounds), Rect::from_ltwh(2, 2, 4, 4));
+    }
+
+    #[test]
+    fn centered_in_offset_bounds() {
+        let bounds = Rect::from_ltwh(5, 5, 10, 10);
+        let popup = Rect::from_ltwh(0, 0, 4, 4);
+        assert_eq!(popup.centered_in(bounds), Rect::from_ltwh(8, 8, 4, 4));
+    }
+
+    #[test]
+    fn centered_in_larger_than_bounds_anchors_top_left() {
+        let bounds = Rect::from_ltwh(0, 0, 4, 4);
+        let too_big = Rect::from_ltwh(0, 0, 10, 10);
+        assert_eq!(too_big.centered_in(bounds), Rect::from_ltwh(0, 0, 10, 10));
+    }
+
+    #[test]
+    fn centered_in_unsigned_does_not_panic() {
+        let bounds = Rect::from_ltwh(0u16, 0, 4, 4);
+        let too_big = Rect::from_ltwh(0u16, 0, 10, 10);
+        assert_eq!(too_big.centered_in(bounds), Rect::from_ltwh(0, 0, 10, 10));
+    }
+
+    #[test]
     fn center_even() {
         let rect = Rect::from_ltwh(0, 0, 4, 4);
         assert_eq!(rect.center(), Pos::new(2, 2));
@@ -1269,6 +1571,24 @@ mod tests {
         assert_eq!(rect.top(), 4);
         assert_eq!(rect.right(), 6);
         assert_eq!(rect.bottom(), 8);
+    }
+
+    #[test]
+    fn mul_size_non_uniform() {
+        use crate::Size;
+
+        let rect = Rect::from_ltwh(1, 2, 3, 4);
+        let new_rect = rect * Size::new(2, 3);
+        assert_eq!(new_rect, Rect::from_ltwh(2, 6, 6, 12));
+    }
+
+    #[test]
+    fn mul_assign_size_non_uniform() {
+        use crate::Size;
+
+        let mut rect = Rect::from_ltwh(1, 2, 3, 4);
+        rect *= Size::new(2, 3);
+        assert_eq!(rect, Rect::from_ltwh(2, 6, 6, 12));
     }
 
     #[test]

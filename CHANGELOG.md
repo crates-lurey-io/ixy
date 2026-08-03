@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-08-02
+
+Closes gaps found by an external source-level audit of a downstream consumer (retroglyph), which
+hand-rolled all of these repeatedly. All changes are additive.
+
+### Added
+
+- `Rect::clamp_within()` — moves (not shrinks) a rectangle so it fits inside a bounding rectangle,
+  keeping its size; the "keep this popup/viewport on screen" operation
+- `Rect::centered_in()` — centers a rectangle's size within a bounding rectangle, then
+  `clamp_within`s it
+- `Rect::inset()` / `Rect::outset()` — asymmetric, saturating grow/shrink by a `top`/`right`/
+  `bottom`/`left` amount per edge, unlike the symmetric, panic-on-underflow `inflate`/`shrink`
+- `Size<T>` parity with `Pos<T>`: `Default`, `From<(T, T)>`/`From<[T; 2]>` (and the reverse
+  conversions), and `PartialOrd`/`Ord` (width-primary, then height)
+- `Rect<T>: Mul<Size<T>>`/`MulAssign<Size<T>>` — per-axis scaling (e.g. cell→pixel with
+  non-square cells), complementing the existing uniform `Mul<T>`
+- `Int::saturating_add()`/`Int::saturating_sub()` — generic saturating arithmetic, backing the
+  saturating `Rect` methods above
+
 ## [0.6.1] - 2026-07-04
 
 ### Fixed
