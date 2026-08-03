@@ -498,6 +498,11 @@ impl<T: Int> Pos<T> {
     /// into on that axis, so the corresponding coordinate falls back to [`Rect::top_left`]'s
     /// coordinate on that axis instead.
     ///
+    /// [`Rect::contains_pos`] holds for the result of any non-empty `bounds` whose right and
+    /// bottom edges are representable in `T`. When an edge saturates at `T::MAX` (see
+    /// [`Rect::right`]) that last cell is not addressable under the half-open convention, and the
+    /// result is `T::MAX` on that axis.
+    ///
     /// ## Examples
     ///
     /// ```rust

@@ -513,6 +513,10 @@ impl<T: Int> Rect<T> {
     /// The returned rectangle is guaranteed to be within the bounds of this rectangle: `row` is
     /// clamped (saturating) to the last valid row if it would otherwise land outside.
     ///
+    /// The last valid row is derived from [`Rect::bottom`], which saturates at `T::MAX`, so a
+    /// rectangle whose bottom edge is not representable in `T` clamps to its last representable
+    /// row rather than overflowing.
+    ///
     /// ## Examples
     ///
     /// ```rust
@@ -526,7 +530,7 @@ impl<T: Int> Rect<T> {
     /// ```
     #[must_use]
     pub fn row_rect(&self, row: usize) -> Self {
-        let row = row.min(self.height_usize().saturating_sub(1));
+        let row = row.min(self.rows_len().saturating_sub(1));
         Self {
             x: self.x,
             y: self.y + T::from_usize(row),
@@ -535,10 +539,26 @@ impl<T: Int> Rect<T> {
         }
     }
 
+    /// The number of rows [`Rect::row_rect`] can address, i.e. this rectangle's height clipped to
+    /// what is representable in `T`.
+    fn rows_len(&self) -> usize {
+        (self.bottom() - self.y).to_usize()
+    }
+
+    /// The number of columns [`Rect::col_rect`] can address, i.e. this rectangle's width clipped
+    /// to what is representable in `T`.
+    fn cols_len(&self) -> usize {
+        (self.right() - self.x).to_usize()
+    }
+
     /// Returns a sub-rectangle representing a column within this rectangle.
     ///
     /// The returned rectangle is guaranteed to be within the bounds of this rectangle: `col` is
     /// clamped (saturating) to the last valid column if it would otherwise land outside.
+    ///
+    /// The last valid column is derived from [`Rect::right`], which saturates at `T::MAX`, so a
+    /// rectangle whose right edge is not representable in `T` clamps to its last representable
+    /// column rather than overflowing.
     ///
     /// ## Examples
     ///
@@ -553,7 +573,7 @@ impl<T: Int> Rect<T> {
     /// ```
     #[must_use]
     pub fn col_rect(&self, col: usize) -> Self {
-        let col = col.min(self.width_usize().saturating_sub(1));
+        let col = col.min(self.cols_len().saturating_sub(1));
         Self {
             x: self.x + T::from_usize(col),
             y: self.y,
@@ -572,6 +592,9 @@ impl<T: Int> Rect<T> {
     /// all, even when its height is nonzero: a rect with `width() == 0` has no columns to give a
     /// row any content, and the row rects that would otherwise be produced are themselves empty,
     /// so `rows()` treats such a rectangle the same as a `0`-height one.
+    ///
+    /// A rectangle whose bottom edge is not representable in `T` yields only its representable
+    /// rows, matching [`Rect::bottom`]'s saturating behavior.
     ///
     /// ## Examples
     ///
@@ -595,11 +618,7 @@ impl<T: Int> Rect<T> {
     /// ```
     #[must_use]
     pub fn rows(&self) -> impl ExactSizeIterator<Item = Self> {
-        let back = if self.is_empty() {
-            0
-        } else {
-            self.height_usize()
-        };
+        let back = if self.is_empty() { 0 } else { self.rows_len() };
         Rows {
             rect: *self,
             front: 0,
@@ -617,6 +636,9 @@ impl<T: Int> Rect<T> {
     /// at all, even when its width is nonzero, mirroring [`Rect::rows`]'s handling of a zero
     /// height.
     ///
+    /// A rectangle whose right edge is not representable in `T` yields only its representable
+    /// columns, matching [`Rect::right`]'s saturating behavior.
+    ///
     /// ## Examples
     ///
     /// ```rust
@@ -632,11 +654,7 @@ impl<T: Int> Rect<T> {
     /// ```
     #[must_use]
     pub fn cols(&self) -> impl ExactSizeIterator<Item = Self> {
-        let back = if self.is_empty() {
-            0
-        } else {
-            self.width_usize()
-        };
+        let back = if self.is_empty() { 0 } else { self.cols_len() };
         Cols {
             rect: *self,
             front: 0,
@@ -2112,6 +2130,51 @@ mod tests {
                 Rect::from_ltwh(50_000u16, 0, 3, 1),
                 Rect::from_ltwh(50_000u16, 1, 3, 1),
             ]
+        );
+    }
+
+    #[test]
+    fn rows_saturating_bottom_yields_only_representable_rows() {
+        // `bottom()` saturates at `u16::MAX`, so only 15_535 of the nominal 40_000 rows exist.
+        let rect = Rect::new(50_000u16, 50_000, 10, 40_000);
+        assert_eq!(rect.bottom(), u16::MAX);
+
+        let mut rows = rect.rows();
+        assert_eq!(rows.len(), 15_535);
+        assert_eq!(rows.next(), Some(Rect::from_ltwh(50_000u16, 50_000, 10, 1)));
+        assert_eq!(
+            rows.last(),
+            Some(Rect::from_ltwh(50_000u16, u16::MAX - 1, 10, 1))
+        );
+    }
+
+    #[test]
+    fn cols_saturating_right_yields_only_representable_cols() {
+        let rect = Rect::new(50_000u16, 0, 40_000, 10);
+        assert_eq!(rect.right(), u16::MAX);
+
+        let mut cols = rect.cols();
+        assert_eq!(cols.len(), 15_535);
+        assert_eq!(cols.next(), Some(Rect::from_ltwh(50_000u16, 0, 1, 10)));
+        assert_eq!(cols.last(), Some(Rect::from_ltwh(u16::MAX - 1, 0, 1, 10)));
+    }
+
+    #[test]
+    fn row_rect_saturating_bottom_does_not_overflow() {
+        let rect = Rect::new(50_000u16, 50_000, 10, 40_000);
+        // Clamps to the last representable row rather than overflowing past `u16::MAX`.
+        assert_eq!(
+            rect.row_rect(39_999),
+            Rect::from_ltwh(50_000u16, u16::MAX - 1, 10, 1)
+        );
+    }
+
+    #[test]
+    fn col_rect_saturating_right_does_not_overflow() {
+        let rect = Rect::new(50_000u16, 0, 40_000, 10);
+        assert_eq!(
+            rect.col_rect(39_999),
+            Rect::from_ltwh(u16::MAX - 1, 0, 1, 10)
         );
     }
 
