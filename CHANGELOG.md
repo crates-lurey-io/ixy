@@ -5,6 +5,68 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-08-03
+
+Another round of gaps found by a source-level audit of a downstream consumer (retroglyph), which
+hand-rolled all of these. Everything is additive except the `LinearLayout` signature change and
+the `Size::min`/`max` shadowing noted under Changed.
+
+### Added
+
+- `Rect::at_origin()` — this rectangle's size, translated to `Pos::ORIGIN`; the "same size, local
+  coordinates" operation a clip/scope needs. `const`, unlike `HasSize::to_rect()`
+- `Size::to_rect()` — a `const` inherent equivalent of `HasSize::to_rect()`, callable from a
+  `const fn`. Shadows the trait method for `Size` itself; both return the same rectangle
+  (https://github.com/crates-lurey-io/ixy/issues/14)
+- `Pos::clamp_within()` — clamps a position into a rectangle honoring the half-open convention
+  used by `contains_pos`/`overlaps`, unlike `pos.clamp(bounds.top_left(), bounds.bottom_right())`,
+  whose upper bound is one cell past the rectangle
+- `Pos::saturating_add()` / `Pos::saturating_sub()` — component-wise lifts of the existing
+  `Int::saturating_add`/`Int::saturating_sub`, so `Pos + Pos` on an unsigned `T` no longer has to
+  panic in debug at the edges
+- `Pos::saturating_add_signed()` — applies an `i32` delta to a `Pos<T>` (typically `Pos<u16>`),
+  saturating at `T::MIN`/`T::MAX`; what a drag or scroll-wheel handler wants
+  (https://github.com/crates-lurey-io/ixy/issues/16)
+- `Size::min()` / `Size::max()` / `Size::clamp()` — the `Pos` trio, lifted to `Size` (see Changed:
+  these shadow the `Ord` methods of the same name)
+- `Rect::rows()` / `Rect::cols()` — the single-row/single-column rects of a rectangle, as an
+  `ExactSizeIterator`; the iterator form of `row_rect`/`col_rect`, which stops at the last line
+  instead of clamping
+- `Rect::row_pos_iter()` / `Rect::col_pos_iter()` — positions grouped per row/column, for
+  renderers that need the line boundary that `pos_iter` deliberately erases
+  (https://github.com/crates-lurey-io/ixy/issues/17)
+- `LinearLayout::checked_index_to_pos()` — `index_to_pos` for the case where the resulting
+  coordinates may not fit the coordinate type, returning `None` instead of panicking (debug) or
+  saturating (release)
+
+### Changed
+
+- **Breaking**: `LinearLayout::pos_to_index()`, `index_to_pos()`, `rect_to_range()`,
+  `slice_rect_aligned()`, and `slice_rect_aligned_mut()` are now generic over the coordinate type
+  (`T: Int`) instead of hard-coded to `usize`. The linear index and `stride` stay `usize`, since
+  an index is a buffer offset. `u16` grids (which this crate endorses with the `Pos16`/`Rect16`
+  aliases) could not use these methods at all before and hand-rolled `y * stride + x` instead;
+  the conversions now live in `ixy`, where the saturate-vs-panic policy is already documented.
+  Implementors of `LinearLayout` must update their signatures. Callers are unaffected wherever
+  the coordinate type is inferable from an argument, but `index_to_pos()` mentions `T` only in its
+  return type, so an unannotated `let p = RowMajor::index_to_pos(i, stride);` no longer infers
+  `usize` and needs a turbofish or an annotation. `len_aligned()`, `slice_aligned()`, and
+  `slice_aligned_mut()` are unchanged: they take buffer lengths and axis indices, not coordinates
+  (https://github.com/crates-lurey-io/ixy/issues/15)
+- **Breaking**: `Size::min()`/`Size::max()`/`Size::clamp()` are component-wise (matching `Pos`)
+  and, being inherent methods, shadow the lexicographic whole-value `Ord::min`/`Ord::max`/
+  `Ord::clamp` for `Size`. Call `Ord::min(a, b)` (etc.) explicitly for the old behavior
+
+### Fixed
+
+- `Rect::row_rect()`/`Rect::col_rect()` computed `y + row`/`x + col` with plain (checked)
+  addition, so a rectangle whose bottom/right edge exceeds `T`'s max panicked in debug builds (and
+  wrapped in release) for a high enough index, despite documenting that the index is clamped into
+  the rectangle. Both now derive the last valid line from the (saturating) `bottom()`/`right()`
+  accessors, as `Rect::rows()`/`Rect::cols()` do for their length
+- `Rect::pos_iter()`'s return type now names its captures (`+ use<T>`), so it can be returned from
+  a closure over a local rectangle under edition 2024's capture rules
+
 ## [0.7.1] - 2026-08-03
 
 ### Fixed
