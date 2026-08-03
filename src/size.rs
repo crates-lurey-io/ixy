@@ -48,6 +48,80 @@ impl<T: Int> Size<T> {
     pub const fn to_pos(&self) -> Pos<T> {
         Pos::new(self.width, self.height)
     }
+
+    /// Returns a rectangle at [`Pos::ORIGIN`] with this size.
+    ///
+    /// This is the `const` inherent equivalent of [`HasSize::to_rect`], for callers that need an
+    /// origin rectangle from a `const fn`.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use ixy::{Rect, Size};
+    ///
+    /// const AREA: Rect<usize> = Size::new(10, 20).to_rect();
+    /// assert_eq!(AREA, Rect::from_ltwh(0, 0, 10, 20));
+    /// ```
+    #[must_use]
+    pub const fn to_rect(&self) -> Rect<T> {
+        Rect::from_ltwh(T::ZERO, T::ZERO, self.width, self.height)
+    }
+
+    /// Returns the component-wise minimum of `self` and `other`.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use ixy::Size;
+    ///
+    /// assert_eq!(Size::new(1, 4).min(Size::new(3, 2)), Size::new(1, 2));
+    /// ```
+    #[must_use]
+    pub fn min(self, other: Self) -> Self {
+        Self {
+            width: core::cmp::min(self.width, other.width),
+            height: core::cmp::min(self.height, other.height),
+        }
+    }
+
+    /// Returns the component-wise maximum of `self` and `other`.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use ixy::Size;
+    ///
+    /// assert_eq!(Size::new(1, 4).max(Size::new(3, 2)), Size::new(3, 4));
+    /// ```
+    #[must_use]
+    pub fn max(self, other: Self) -> Self {
+        Self {
+            width: core::cmp::max(self.width, other.width),
+            height: core::cmp::max(self.height, other.height),
+        }
+    }
+
+    /// Returns `self` with each component clamped to the `[min, max]` range.
+    ///
+    /// ## Panics
+    ///
+    /// Panics if `min.width > max.width` or `min.height > max.height`, matching [`Ord::clamp`].
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use ixy::Size;
+    ///
+    /// let size = Size::new(80, 1);
+    /// assert_eq!(size.clamp(Size::new(10, 10), Size::new(40, 40)), Size::new(40, 10));
+    /// ```
+    #[must_use]
+    pub fn clamp(self, min: Self, max: Self) -> Self {
+        Self {
+            width: self.width.clamp(min.width, max.width),
+            height: self.height.clamp(min.height, max.height),
+        }
+    }
 }
 
 impl<T: Int> Default for Size<T> {
@@ -242,6 +316,9 @@ pub trait HasSize<T: Int = usize> {
     }
 
     /// Returns a rectangle at `Pos::ORIGIN` where the size is the object's size.
+    ///
+    /// [`Size`] additionally provides an inherent `const fn` of the same name, and [`Rect`] the
+    /// equivalent [`Rect::at_origin`].
     #[must_use]
     fn to_rect(&self) -> Rect<T> {
         Rect::from_ltwh(T::ZERO, T::ZERO, self.width(), self.height())
@@ -276,6 +353,43 @@ mod tests {
         assert_eq!(rect.top(), 0);
         assert_eq!(rect.right(), 10);
         assert_eq!(rect.bottom(), 20);
+    }
+
+    #[test]
+    fn to_rect_is_const() {
+        const RECT: Rect<u16> = Size::new(10u16, 20u16).to_rect();
+        assert_eq!(RECT, Rect::from_ltwh(0, 0, 10, 20));
+    }
+
+    #[test]
+    fn to_rect_inherent_matches_has_size() {
+        let size = Size::new(10, 20);
+        assert_eq!(size.to_rect(), HasSize::to_rect(&size));
+    }
+
+    #[test]
+    fn min() {
+        assert_eq!(Size::new(1, 4).min(Size::new(3, 2)), Size::new(1, 2));
+    }
+
+    #[test]
+    fn max() {
+        assert_eq!(Size::new(1, 4).max(Size::new(3, 2)), Size::new(3, 4));
+    }
+
+    #[test]
+    fn clamp() {
+        let size = Size::new(80, 1);
+        assert_eq!(
+            size.clamp(Size::new(10, 10), Size::new(40, 40)),
+            Size::new(40, 10)
+        );
+    }
+
+    #[test]
+    fn clamp_within_range_is_unchanged() {
+        let size = Size::new(20, 20);
+        assert_eq!(size.clamp(Size::new(10, 10), Size::new(40, 40)), size);
     }
 
     #[test]
