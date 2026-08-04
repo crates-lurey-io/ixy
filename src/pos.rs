@@ -1,9 +1,44 @@
 use core::{fmt::Display, ops};
 
 use crate::{
+    Rect,
     int::{Int, SignedInt},
     internal,
 };
+
+/// Applies an unsigned `magnitude` to `base` in the given direction, saturating at the bounds of
+/// `T` instead of overflowing or underflowing.
+///
+/// The magnitude is applied in chunks of at most `T::MAX`, and the loop exits as soon as `base`
+/// has saturated at the relevant bound, so this terminates in a small, constant number of
+/// iterations (at most a handful) regardless of how large `magnitude` is or how narrow `T` is.
+/// This avoids the pitfall of a single `T::saturating_from_usize(magnitude)` step, which would
+/// clamp the magnitude itself before it is applied and under-apply large deltas to narrow signed
+/// types (whose `MIN` magnitude is one greater than `MAX`).
+fn saturating_apply_magnitude<T: Int>(base: T, magnitude: usize, negative: bool) -> T {
+    // `saturating_to_usize`, not `to_usize`: `T::MAX` genuinely exceeds `usize` for `u128`/`i128`
+    // on every supported target, and a `usize::MAX` chunk is the right cap there anyway.
+    let cap = T::MAX.saturating_to_usize();
+    let bound = if negative { T::MIN } else { T::MAX };
+    let mut result = base;
+    let mut remaining = magnitude;
+    while remaining > 0 && result != bound && cap > 0 {
+        let chunk = remaining.min(cap);
+        let step = T::saturating_from_usize(chunk);
+        result = if negative {
+            result.saturating_sub(step)
+        } else {
+            result.saturating_add(step)
+        };
+        remaining -= chunk;
+    }
+    result
+}
+
+/// The magnitude of `delta` as a `usize`, saturating on targets whose `usize` is narrower.
+fn to_magnitude(delta: i32) -> usize {
+    usize::try_from(delta.unsigned_abs()).unwrap_or(usize::MAX)
+}
 
 /// A macro that creates a position with the given `x` and `y` coordinates.
 #[macro_export]
@@ -448,6 +483,133 @@ impl<T: Int> Pos<T> {
     #[must_use]
     pub fn dot(self, other: Self) -> T {
         self.x * other.x + self.y * other.y
+    }
+
+    /// Clamps `self` to the closest position inside `bounds`.
+    ///
+    /// Honors the half-open convention used by [`Rect::contains_pos`] and [`Rect::overlaps`]:
+    /// [`Rect::right`] and [`Rect::bottom`] are one past the last valid cell, so the result is
+    /// clamped into `[bounds.left(), bounds.right() - 1]` on the x-axis and
+    /// `[bounds.top(), bounds.bottom() - 1]` on the y-axis. [`Pos::clamp`] is the wrong tool for
+    /// this, since it would clamp `x`/`y` up to (and including) `bounds.bottom_right()`, which is
+    /// one cell past the rectangle's actual bounds.
+    ///
+    /// If `bounds` is empty (zero width and/or zero height), there is no valid cell to clamp
+    /// into on that axis, so the corresponding coordinate falls back to [`Rect::top_left`]'s
+    /// coordinate on that axis instead.
+    ///
+    /// [`Rect::contains_pos`] holds for the result of any non-empty `bounds` whose right and
+    /// bottom edges are representable in `T`. When an edge saturates at `T::MAX` (see
+    /// [`Rect::right`]) that last cell is not addressable under the half-open convention, and the
+    /// result is `T::MAX` on that axis.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use ixy::{Pos, Rect};
+    ///
+    /// let bounds = Rect::from_ltrb(0, 0, 10, 10).unwrap();
+    ///
+    /// // Already inside `bounds`.
+    /// assert_eq!(Pos::new(5, 5).clamp_within(bounds), Pos::new(5, 5));
+    ///
+    /// // Off each edge, clamps to the closest valid cell.
+    /// assert_eq!(Pos::new(-5, 5).clamp_within(bounds), Pos::new(0, 5));
+    /// assert_eq!(Pos::new(15, 5).clamp_within(bounds), Pos::new(9, 5));
+    ///
+    /// // `bottom_right()` is exclusive, so it clamps to the last valid cell, not itself.
+    /// assert_eq!(bounds.bottom_right().clamp_within(bounds), Pos::new(9, 9));
+    ///
+    /// // An empty `bounds` falls back to `top_left()` on the degenerate axis.
+    /// let empty = Rect::from_ltrb(2, 3, 2, 8).unwrap();
+    /// assert_eq!(Pos::new(100, 5).clamp_within(empty), Pos::new(2, 5));
+    /// ```
+    #[must_use]
+    pub fn clamp_within(self, bounds: Rect<T>) -> Self {
+        let x = if bounds.width() == T::ZERO {
+            bounds.left()
+        } else {
+            let hi = core::cmp::max(bounds.right().saturating_sub(T::ONE), bounds.left());
+            core::cmp::min(core::cmp::max(self.x, bounds.left()), hi)
+        };
+        let y = if bounds.height() == T::ZERO {
+            bounds.top()
+        } else {
+            let hi = core::cmp::max(bounds.bottom().saturating_sub(T::ONE), bounds.top());
+            core::cmp::min(core::cmp::max(self.y, bounds.top()), hi)
+        };
+        Self { x, y }
+    }
+
+    /// Adds a signed `delta` to `self`, saturating at `T::MIN`/`T::MAX` on each axis instead of
+    /// wrapping or underflowing/overflowing.
+    ///
+    /// This is useful when `T` is an unsigned type (or a narrower signed type than `i32`) and the
+    /// delta may be negative or may exceed the range of `T`.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use ixy::Pos;
+    ///
+    /// let p = Pos::<u16>::new(5, 5);
+    /// assert_eq!(
+    ///     p.saturating_add_signed(Pos::new(-10, 100_000)),
+    ///     Pos::new(0, u16::MAX)
+    /// );
+    ///
+    /// let p = Pos::<i8>::new(0, 0);
+    /// assert_eq!(
+    ///     p.saturating_add_signed(Pos::new(-200, 200)),
+    ///     Pos::new(i8::MIN, i8::MAX)
+    /// );
+    /// ```
+    #[must_use]
+    pub fn saturating_add_signed(self, delta: Pos<i32>) -> Self {
+        Self {
+            x: saturating_apply_magnitude(self.x, to_magnitude(delta.x), delta.x < 0),
+            y: saturating_apply_magnitude(self.y, to_magnitude(delta.y), delta.y < 0),
+        }
+    }
+
+    /// Returns the component-wise saturating addition of `self` and `other`.
+    ///
+    /// Saturates at `T::MIN`/`T::MAX` instead of wrapping or overflowing.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use ixy::Pos;
+    ///
+    /// let p = Pos::<u8>::new(250, 10);
+    /// assert_eq!(p.saturating_add(Pos::new(10, 10)), Pos::new(u8::MAX, 20));
+    /// ```
+    #[must_use]
+    pub fn saturating_add(self, other: Self) -> Self {
+        Self {
+            x: self.x.saturating_add(other.x),
+            y: self.y.saturating_add(other.y),
+        }
+    }
+
+    /// Returns the component-wise saturating subtraction of `self` and `other`.
+    ///
+    /// Saturates at `T::MIN`/`T::MAX` instead of wrapping or underflowing.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use ixy::Pos;
+    ///
+    /// let p = Pos::<u8>::new(5, 10);
+    /// assert_eq!(p.saturating_sub(Pos::new(10, 5)), Pos::new(0, 5));
+    /// ```
+    #[must_use]
+    pub fn saturating_sub(self, other: Self) -> Self {
+        Self {
+            x: self.x.saturating_sub(other.x),
+            y: self.y.saturating_sub(other.y),
+        }
     }
 }
 
@@ -1188,5 +1350,129 @@ mod tests {
         let p: PosI = PosI::new(1, 2);
         assert_eq!(p.x, 1i32);
         assert_eq!(p.y, 2i32);
+    }
+
+    #[test]
+    fn clamp_within_already_inside() {
+        let bounds = Rect::from_ltrb(0, 0, 10, 10).unwrap();
+        assert_eq!(Pos::new(5, 5).clamp_within(bounds), Pos::new(5, 5));
+    }
+
+    #[test]
+    fn clamp_within_off_left_edge() {
+        let bounds = Rect::from_ltrb(0, 0, 10, 10).unwrap();
+        assert_eq!(Pos::new(-5, 5).clamp_within(bounds), Pos::new(0, 5));
+    }
+
+    #[test]
+    fn clamp_within_off_right_edge() {
+        let bounds = Rect::from_ltrb(0, 0, 10, 10).unwrap();
+        assert_eq!(Pos::new(15, 5).clamp_within(bounds), Pos::new(9, 5));
+    }
+
+    #[test]
+    fn clamp_within_off_top_edge() {
+        let bounds = Rect::from_ltrb(0, 0, 10, 10).unwrap();
+        assert_eq!(Pos::new(5, -5).clamp_within(bounds), Pos::new(5, 0));
+    }
+
+    #[test]
+    fn clamp_within_off_bottom_edge() {
+        let bounds = Rect::from_ltrb(0, 0, 10, 10).unwrap();
+        assert_eq!(Pos::new(5, 15).clamp_within(bounds), Pos::new(5, 9));
+    }
+
+    #[test]
+    fn clamp_within_exclusive_bottom_right_trap() {
+        // bounds.bottom_right() is one past the last valid cell; clamping it must land on the
+        // last valid cell, not on bottom_right() itself.
+        let bounds = Rect::from_ltrb(0, 0, 10, 10).unwrap();
+        assert_eq!(bounds.bottom_right().clamp_within(bounds), Pos::new(9, 9));
+    }
+
+    #[test]
+    fn clamp_within_empty_width_and_height() {
+        let bounds = Rect::from_ltrb(2, 3, 2, 3).unwrap();
+        assert!(bounds.is_empty());
+        assert_eq!(Pos::new(100, 100).clamp_within(bounds), Pos::new(2, 3));
+    }
+
+    #[test]
+    fn clamp_within_empty_width_only() {
+        let bounds = Rect::from_ltrb(2, 3, 2, 8).unwrap();
+        assert_eq!(Pos::new(100, 5).clamp_within(bounds), Pos::new(2, 5));
+    }
+
+    #[test]
+    fn clamp_within_empty_height_only() {
+        let bounds = Rect::from_ltrb(2, 3, 8, 3).unwrap();
+        assert_eq!(Pos::new(5, 100).clamp_within(bounds), Pos::new(5, 3));
+    }
+
+    #[test]
+    fn clamp_within_u16_coordinates() {
+        let bounds = Rect::<u16>::from_ltrb(0, 0, 10, 10).unwrap();
+        assert_eq!(
+            Pos::<u16>::new(65535, 65535).clamp_within(bounds),
+            Pos::new(9, 9)
+        );
+    }
+
+    #[test]
+    fn saturating_add_pos() {
+        let p = Pos::<u8>::new(250, 10);
+        assert_eq!(p.saturating_add(Pos::new(10, 10)), Pos::new(u8::MAX, 20));
+    }
+
+    #[test]
+    fn saturating_sub_pos() {
+        let p = Pos::<u8>::new(5, 10);
+        assert_eq!(p.saturating_sub(Pos::new(10, 5)), Pos::new(0, 5));
+    }
+
+    #[test]
+    fn saturating_add_signed_unsigned_saturates_at_zero() {
+        let p = Pos::<u16>::new(5, 5);
+        assert_eq!(
+            p.saturating_add_signed(Pos::new(-10, 100_000)),
+            Pos::new(0, u16::MAX)
+        );
+    }
+
+    #[test]
+    fn saturating_add_signed_signed_saturates_both_ends() {
+        let p = Pos::<i8>::new(0, 0);
+        assert_eq!(
+            p.saturating_add_signed(Pos::new(-200, 200)),
+            Pos::new(i8::MIN, i8::MAX)
+        );
+    }
+
+    #[test]
+    fn saturating_add_signed_large_magnitude_i32_delta() {
+        // i32::MIN's magnitude does not fit in a u32/usize directly via `abs()`, exercise
+        // `unsigned_abs()` handling of the largest possible negative delta.
+        let p = Pos::<i8>::new(0, 0);
+        assert_eq!(
+            p.saturating_add_signed(Pos::new(i32::MIN, i32::MAX)),
+            Pos::new(i8::MIN, i8::MAX)
+        );
+    }
+
+    #[test]
+    fn saturating_add_signed_exact_no_saturation() {
+        // Regression test: a single clamped step would previously under- or over-apply the
+        // delta for narrow signed types even when the exact result is representable.
+        let p = Pos::<i8>::new(-128, 127);
+        assert_eq!(
+            p.saturating_add_signed(Pos::new(200, -200)),
+            Pos::new(72, -73)
+        );
+    }
+
+    #[test]
+    fn saturating_add_signed_zero_delta_is_identity() {
+        let p = Pos::<i32>::new(3, 4);
+        assert_eq!(p.saturating_add_signed(Pos::new(0, 0)), p);
     }
 }
